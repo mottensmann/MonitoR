@@ -1,0 +1,8 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+.Rmd
+R/my_utils.R
+Notes.Rmd
+^\.positai$
+^\.claude$
+hyla/
