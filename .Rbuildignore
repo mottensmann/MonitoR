@@ -6,3 +6,4 @@ Notes.Rmd
 ^\.positai$
 ^\.claude$
 hyla/
+R/debugging.R

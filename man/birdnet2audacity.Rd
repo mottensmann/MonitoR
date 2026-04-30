@@ -7,7 +7,7 @@
 birdnet2audacity(predictions, wave_files)
 }
 \arguments{
-\item{predictions}{list of data frames returned by \link[birdnetR]{predict_species_from_audio_file }}
+\item{predictions}{list of data frames returned by \link[birdnetR]{predict_species_from_audio_file}}
 
 \item{wave_files}{path to wave_files in order of data frames}
 }

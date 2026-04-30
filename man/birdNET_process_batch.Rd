@@ -23,17 +23,17 @@ birdNET_process_batch(
 
 \item{slist}{species_list as character vector}
 
-\item{language}{birdnetR::predict_species_from_audio_file}
+\item{language}{\link[birdnetR]{predict_species_from_audio_file}}
 
-\item{batch_size}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{batch_size}{see \link[birdnetR]{predict_species_from_audio_file}}
 
 \item{restart}{optional. restart iteration from here}
 
-\item{min_confidence}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{min_confidence}{see \link[birdnetR]{predict_species_from_audio_file}}
 
-\item{chunk_overlap_s}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{chunk_overlap_s}{see \link[birdnetR]{predict_species_from_audio_file}}
 
-\item{sigmoid_sensitivity}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{sigmoid_sensitivity}{see \link[birdnetR]{predict_species_from_audio_file}}
 }
 \description{
 Split execution of \link{birdNET_process} in sets of wave files

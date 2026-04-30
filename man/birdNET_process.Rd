@@ -19,18 +19,18 @@ birdNET_process(
 
 \item{slist}{species_list as character vector}
 
-\item{language}{birdnetR::predict_species_from_audio_file}
+\item{language}{\link[birdnetR]{predict_species_from_audio_file}}
 
-\item{batch_size}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{batch_size}{see \link[birdnetR]{predict_species_from_audio_file}}
 
-\item{min_confidence}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{min_confidence}{see \link[birdnetR]{predict_species_from_audio_file}}
 
-\item{chunk_overlap_s}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{chunk_overlap_s}{see \link[birdnetR]{predict_species_from_audio_file}}
 
-\item{sigmoid_sensitivity}{see \link[birdnetR]{predict_species_from_audio_file }}
+\item{sigmoid_sensitivity}{see \link[birdnetR]{predict_species_from_audio_file}}
 }
 \value{
-see \link[birdnetR]{predict_species_from_audio_file }
+see \link[birdnetR]{predict_species_from_audio_file}
 }
 \description{
 Execute \link[birdnetR]{predict_species_from_audio_file } with custom settings
