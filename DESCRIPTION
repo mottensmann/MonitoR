@@ -1,6 +1,6 @@
 Package: MonitoR
 Type: Package
-Title: Cleaning & Validating Monitoring data
+Title: Cleaning, Analysing & Validating Monitoring data
 Version: 0.1.0
 Authors@R: c(
     person(
