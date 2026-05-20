@@ -46,7 +46,7 @@ birdNET_graph <- function(path, taxon) {
 #' @description
 #' Creates a text file with labels for use in Audacity matching --rtype 'audacity' when using [BirdNET-Analyzer](https://github.com/birdnet-team/BirdNET-Analyzer)
 #'
-#' @param predictions list of data frames returned by \link[birdnetR]{predict_species_from_audio_file }
+#' @param predictions list of data frames returned by \link[birdnetR]{predict_species_from_audio_file}
 #' @param wave_files path to wave_files in order of data frames
 #' @importFrom readr write_delim
 #' @importFrom stringr str_replace
@@ -104,15 +104,15 @@ birdnet2audacity <- function(predictions, wave_files) {
   }
 }
 
-#' Execute \link[birdnetR]{predict_species_from_audio_file } with custom settings
+#' Execute \link[birdnetR]{predict_species_from_audio_file} with custom settings
 #' @param audio audio file
 #' @param slist species_list as character vector
-#' @param language birdnetR::predict_species_from_audio_file
-#' @param batch_size see \link[birdnetR]{predict_species_from_audio_file }
-#' @param min_confidence see \link[birdnetR]{predict_species_from_audio_file }
-#' @param chunk_overlap_s see \link[birdnetR]{predict_species_from_audio_file }
-#' @param sigmoid_sensitivity see \link[birdnetR]{predict_species_from_audio_file }
-#' @return see \link[birdnetR]{predict_species_from_audio_file }
+#' @param language \link[birdnetR]{predict_species_from_audio_file}
+#' @param batch_size see \link[birdnetR]{predict_species_from_audio_file}
+#' @param min_confidence see \link[birdnetR]{predict_species_from_audio_file}
+#' @param chunk_overlap_s see \link[birdnetR]{predict_species_from_audio_file}
+#' @param sigmoid_sensitivity see \link[birdnetR]{predict_species_from_audio_file}
+#' @return see \link[birdnetR]{predict_species_from_audio_file}
 #' @importFrom birdnetR predict_species_from_audio_file
 #' @importFrom birdnetR birdnet_model_tflite
 #' @export

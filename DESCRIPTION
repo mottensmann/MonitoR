@@ -1,6 +1,6 @@
 Package: MonitoR
 Type: Package
-Title: Cleaning & Validating Monitoring data
+Title: Cleaning, Analysing & Validating Monitoring data
 Version: 0.1.0
 Authors@R: c(
     person(
@@ -12,7 +12,6 @@ Authors@R: c(
 Description: Suite of functions to automatise analyses and validation of monitoring data, with a special emphasis on passive acoustic monitoring (PAM), partly relying on BirdNET-Analyzer and NocMigR2.
 License: GPL (>= 3)
 Encoding: UTF-8
-RoxygenNote: 7.3.3
 Imports: 
   birdnetR,
   dplyr,
@@ -27,3 +26,4 @@ Imports:
   tidyr
 Remotes: 
   mottensmann/NocMigR2
+Config/roxygen2/version: 8.0.0
