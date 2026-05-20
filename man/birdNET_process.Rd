@@ -2,7 +2,7 @@
 % Please edit documentation in R/BirdNET.R
 \name{birdNET_process}
 \alias{birdNET_process}
-\title{Execute \link[birdnetR]{predict_species_from_audio_file } with custom settings}
+\title{Execute \link[birdnetR]{predict_species_from_audio_file} with custom settings}
 \usage{
 birdNET_process(
   audio,
@@ -33,5 +33,5 @@ birdNET_process(
 see \link[birdnetR]{predict_species_from_audio_file}
 }
 \description{
-Execute \link[birdnetR]{predict_species_from_audio_file } with custom settings
+Execute \link[birdnetR]{predict_species_from_audio_file} with custom settings
 }

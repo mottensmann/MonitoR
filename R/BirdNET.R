@@ -104,7 +104,7 @@ birdnet2audacity <- function(predictions, wave_files) {
   }
 }
 
-#' Execute \link[birdnetR]{predict_species_from_audio_file } with custom settings
+#' Execute \link[birdnetR]{predict_species_from_audio_file} with custom settings
 #' @param audio audio file
 #' @param slist species_list as character vector
 #' @param language \link[birdnetR]{predict_species_from_audio_file}
