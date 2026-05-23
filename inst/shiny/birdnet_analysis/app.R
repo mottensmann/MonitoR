@@ -6,26 +6,73 @@ library(shinyFiles)
 library(tidyverse)
 library(readxl)
 
-
 # UI ---------------------------------------------------------------------------
 
 ui <- page_navbar(
   title = tags$span(bs_icon("binoculars-fill"), "BirdNET Analysis App"),
   theme = bs_theme(version = 5, bootswatch = "flatly"),
   fillable = FALSE,
+  # Add custom JavaScript for file link handling and Verification dropdown
+  tags$head(
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('add_file_click_handlers', function(message) {
+        $(document).on('click', '.file-link', function(e) {
+          e.preventDefault();
+          var filePath = $(this).data('file');
+          // Send message to server to open file
+          Shiny.setInputValue('file_to_open', filePath, {priority: 'event'});
+        });
+      });
+
+      // Add dropdown functionality for Verification column
+      $(document).on('dblclick', 'table tbody tr td', function() {
+        // Get the column header
+        var colIndex = $(this).index();
+        var headerCells = $('table thead th');
+        var colName = $(headerCells[colIndex]).text().trim();
+
+        // Only apply dropdown to Verification column
+        if (colName === 'Verification') {
+          var currentValue = $(this).text().trim();
+          var dropdown = '<select class=\"verification-select\" style=\"width: 100%; padding: 5px;\">' +
+            '<option value=\"\">-- Select --</option>' +
+            '<option value=\"T\" ' + (currentValue === 'T' ? 'selected' : '') + '>T</option>' +
+            '<option value=\"F\" ' + (currentValue === 'F' ? 'selected' : '') + '>F</option>' +
+            '<option value=\"?\" ' + (currentValue === '?' ? 'selected' : '') + '>?</option>' +
+            '</select>';
+          $(this).html(dropdown);
+          $(this).find('select').focus();
+
+          $(this).find('select').on('change', function() {
+            $(this).closest('td').text($(this).val());
+          });
+
+          $(this).find('select').on('blur', function() {
+            if (!$(this).val()) {
+              $(this).closest('td').text(currentValue);
+            }
+          });
+        }
+      });
+    "))
+  ),
 
   # ── Tab 1: Configuration ───────────────────────────────────────────────────
   nav_panel(
-    title = "Meta-data",
+    title = "Settings",
     icon  = bs_icon("gear"),
 
     layout_columns(
       col_widths = c(6, 6),
       card(
         card_header("Data Settings"),
-        textInput("path", "Path to data files",
-                  value = "D:/BirdNET/",
-                  width = "100%"),
+        shinyDirButton("path", "Select data folder", "Please select a folder"),
+        div(class = "mt-2 p-2 bg-light rounded text-monospace text-break",
+            style = "font-size: 0.9rem; min-height: 40px;",
+            textOutput("path_display")),
+        # textInput("path", "Path to data files",
+        #           value = "D:/BirdNET/",
+        #           width = "100%"),
         input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
         input_switch("recursive",  "Recursive directory search",          value = TRUE),
         input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
@@ -67,7 +114,7 @@ ui <- page_navbar(
     )
   ),
 
-  # ── Tab 2: Workflow ────────────────────────────────────────────────────────
+  ## Tab 2: Processing ----
   nav_panel(
     title = "Processing",
     icon  = bs_icon("play-btn"),
@@ -97,7 +144,7 @@ ui <- page_navbar(
           ),
 
           accordion_panel(
-            title = "3 · Postprocessing BirdNET output",
+            title = "3 · Postprocessing",
             icon  = bs_icon("file-earmark-spreadsheet"),
             actionButton("run_format",  "Format results",
                          class = "btn-outline-success w-100 mb-1"),
@@ -108,7 +155,7 @@ ui <- page_navbar(
           ),
 
           accordion_panel(
-            title = "4 · Archiving",
+            title = "4 · Archiving data",
             icon  = bs_icon("archive"),
             actionButton("run_archive", "Archive results",
                          class = "btn-outline-danger w-100")
@@ -142,6 +189,7 @@ ui <- page_navbar(
         actionButton("load_results", "Load BirdNET.xlsx",
                      icon = icon("folder-open"), class = "btn-primary w-100 mb-3"),
         uiOutput("taxon_ui"),
+        input_switch("sync_filter", "Filter table by taxon", value = TRUE),
         hr(),
         uiOutput("summary_boxes")
       ),
@@ -167,10 +215,8 @@ ui <- page_navbar(
 server <- function(input, output, session) {
   thematic::thematic_shiny()
 
-  # Set default root and default folder
-  roots <- c(default = "D:/BirdNET/")
-
-  shinyFiles::shinyDirChoose(input, "path", roots = roots)
+  # Add JavaScript handler for file link clicks
+  session$sendCustomMessage(type = "add_file_click_handlers", message = list())
 
   ## Log helpers ----
   log_rv <- reactiveVal(character(0))
@@ -184,30 +230,44 @@ server <- function(input, output, session) {
   output$log <- renderText(paste(log_rv(), collapse = "\n"))
   observeEvent(input$clear_log, log_rv(character(0)))
 
-  # observeEvent(input$pick_folder, {
-  #   folder <- choose.dir(default = "D:/BirdNET/test/")
-  #   if (!is.na(folder)) {
-  #     updateTextInput(session, "path", value = folder)
-  #   }
-  # })
+  ## Step 0: Pick folder ----
+
+  selected_dir <- reactiveVal("D:/BirdNET/test")
+
+  roots <- c(data = "D:/")
+  shinyDirChoose(input, "path", roots = roots, session = session)
+  observeEvent(input$path, {
+    if (is.null(input$path) || any(is.na(input$path))) return()
+    selected_dir(parseDirPath(roots, input$path))
+  })
+
+  output$path_display <- renderText({
+    path <- selected_dir()
+    if (is.null(path) || !nzchar(path)) {
+      "No folder selected"
+    } else {
+      path
+    }
+  })
+
 
   ## Step 1: Preprocessing ----
   observeEvent(input$run_rename, {
-    req(input$path)
-    add_log(paste("Renaming files in:", input$path))
+    req(selected_dir())
+    add_log(paste("Renaming files in:", selected_dir()))
     tryCatch({
-      MonitoR::strip_device_id(input_dir = input$path)
+      MonitoR::strip_device_id(input_dir = selected_dir())
       add_log("Files renamed successfully")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
   ## Step 2: BirdNET-Analyzer ----
   observeEvent(input$run_birdnet_r, {
-    req(input$path)
+    req(selected_dir())
     add_log("Scanning for wav files ...")
     tryCatch({
       wav_files <- list.files(
-        input$path, pattern = "\\.wav$",
+        selected_dir(), pattern = "\\.wav$",
         full.names = TRUE, recursive = input$recursive, ignore.case = TRUE
       )
       ## ignore subfolder 'extracted' if present
@@ -231,7 +291,7 @@ server <- function(input, output, session) {
 
   ## Step 3.1.1: Format BirdNET results ----
   observeEvent(input$run_format, {
-    req(input$path)
+    req(selected_dir())
     add_log("Reformatting BirdNET results ...")
     tryCatch({
       meta <- NocMigR2::BirdNET_meta(
@@ -246,7 +306,7 @@ server <- function(input, output, session) {
         Slist       = input$slist
       )
       data <- lapply(
-        input$path, NocMigR2::BirdNET,
+        selected_dir(), NocMigR2::BirdNET,
         am_config = input$am_config,
         recursive = input$recursive,
         meta      = meta
@@ -258,21 +318,21 @@ server <- function(input, output, session) {
 
   ## Step 3.1.2: Filter BirdNET results ----
   observeEvent(input$run_filter, {
-    req(input$path)
+    req(selected_dir())
     add_log("Filter by species list ...")
     tryCatch({
-      data <- MonitoR::birdNET_select(path = input$path)
+      data <- MonitoR::birdNET_select(path = selected_dir())
       add_log(paste("BirdNET results filtered",  nrow(data), "records retained"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
   ## Step 3.2: Extract BirdNET results ----
   observeEvent(input$run_extract, {
-    req(input$path)
+    req(selected_dir())
     add_log("Extracting BirdNET results ...")
     tryCatch({
       lapply(
-        input$path, NocMigR2::BirdNET_extract,
+        selected_dir(), NocMigR2::BirdNET_extract,
         hyperlink = input$hyperlink,
         spectro   = input$spectro
       )
@@ -282,11 +342,11 @@ server <- function(input, output, session) {
 
   ## Step 4: Archive ----
   observeEvent(input$run_archive, {
-    req(input$path, input$path2archive, input$db)
+    req(selected_dir(), input$path2archive, input$db)
     add_log("Archiving results...")
     tryCatch({
       NocMigR2::BirdNET_archive_am(
-        BirdNET_results = file.path(input$path, "BirdNET.xlsx"),
+        BirdNET_results = file.path(selected_dir(), "BirdNET.xlsx"),
         path2archive    = input$path2archive,
         keep.false      = input$keep_false,
         db              = input$db,
@@ -298,8 +358,8 @@ server <- function(input, output, session) {
 
   # Results: load BirdNET.xlsx ----
   results_data <- eventReactive(input$load_results, {
-    req(input$path)
-    fp <- file.path(input$path, "BirdNET.xlsx")
+    req(selected_dir())
+    fp <- file.path(selected_dir(), "BirdNET.xlsx")
     if (!file.exists(fp)) {
       showNotification("BirdNET.xlsx not found. Run the workflow first.", type = "error")
       return(NULL)
@@ -307,6 +367,7 @@ server <- function(input, output, session) {
     read_xlsx(fp)
   })
 
+  # Store the edited data
   output$taxon_ui <- renderUI({
     req(results_data())
     taxa <- sort(unique(results_data()$Taxon))
@@ -324,19 +385,101 @@ server <- function(input, output, session) {
     )
   })
 
+  # Handle file link clicks to open in Audacity
+  observeEvent(input$file_to_open, {
+    file_path <- input$file_to_open
+    if (is.null(file_path) || !nzchar(file_path)) return()
+
+    # If path is relative, try to construct full path from selected directory
+    if (!file.exists(file_path) && !is.null(selected_dir())) {
+      full_path <- file.path(selected_dir(), file_path)
+      if (file.exists(full_path)) {
+        file_path <- full_path
+      }
+    }
+
+    if (file.exists(file_path)) {
+      tryCatch({
+        # Open file with default application (Audacity if associated)
+        shell.exec(file_path)
+        showNotification(paste("Opening:", basename(file_path)), type = "message")
+      }, error = function(e) {
+        showNotification(paste("Error opening file:", e$message), type = "error")
+      })
+    } else {
+      showNotification(paste("File not found:", file_path), type = "error")
+    }
+  })
+
   output$results_table <- DT::renderDataTable({
-    req(results_data())
+    req(results_data(), input$taxon)
+    df <- results_data()
+
+    if (isTruthy(input$sync_filter) && !is.null(input$taxon)) {
+      df <- df |> filter(Taxon == input$taxon)
+    }
+
+    # Find file column for clickable links
+    file_col <- NULL
+    potential_cols <- c("Path", "path", "File", "file", "Filepath", "filepath", "FilePath")
+    for (col in potential_cols) {
+      if (col %in% names(df)) {
+        file_col <- col
+        break
+      }
+    }
+
+    # If no standard column found, look for one that contains "/" or "\"
+    if (is.null(file_col)) {
+      for (col in names(df)) {
+        if (is.character(df[[col]]) && any(grepl("[/\\\\]", df[[col]], na.rm = TRUE))) {
+          file_col <- col
+          break
+        }
+      }
+    }
+
+    # Add click handler to the file column
+    if (!is.null(file_col) && nrow(df) > 0) {
+      df <- df |>
+        mutate(
+          !!file_col := paste0(
+            '<a href="javascript:void(0);" class="file-link" data-file="',
+            !!sym(file_col),
+            '" style="color: #0066cc; text-decoration: underline; cursor: pointer;">',
+            basename(!!sym(file_col)),
+            '</a>'
+          )
+        )
+    }
+
+    # Reorder columns: First column stays first, File as second, then rest (excluding T2)
+    all_cols <- names(df)
+    first_col <- all_cols[1]
+
+    # Determine column order
+    if (!is.null(file_col)) {
+      # File as second column
+      remaining_cols <- setdiff(all_cols, c(first_col, file_col, "T2"))
+      df <- df |> select(!!first_col, !!file_col, all_of(remaining_cols))
+    } else {
+      # Remove T2
+      remaining_cols <- setdiff(all_cols, c(first_col, "T2"))
+      df <- df |> select(!!first_col, all_of(remaining_cols))
+    }
+
     DT::datatable(
-      results_data(),
+      df,
       filter  = "top",
+      escape  = FALSE,
       options = list(pageLength = 15, scrollX = TRUE)
     )
-  })
+  }, server = TRUE)
 
   output$activity_plot <- renderPlot({
     req(results_data(), input$taxon)
     tryCatch(
-      birdNET_graph(path = input$path, taxon = input$taxon),
+      birdNET_graph(path = selected_dir(), taxon = input$taxon),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")

@@ -75,6 +75,13 @@ data <- lapply(path,
                meta = meta_data)
 ```
 
+Optional: Filter based on custom species list
+
+```{r, eval=F, warning=FALSE}
+data[[1]][['Records']] <- birdNET_select(path)
+```
+
+
 ## Extract `BirdNET` results
 
 ```{r, eval=F, warning=FALSE}
