@@ -1,56 +1,57 @@
-library(shiny)
 library(bslib)
 library(bsicons)
+library(MonitoR)
+library(shiny)
+library(shinyFiles)
 library(tidyverse)
 library(readxl)
-library(MonitoR)
 
-# ── UI ────────────────────────────────────────────────────────────────────────
+
+# UI ---------------------------------------------------------------------------
 
 ui <- page_navbar(
-  title = tags$span(bs_icon("binoculars-fill"), " BirdNET Analysis"),
+  title = tags$span(bs_icon("binoculars-fill"), "BirdNET Analysis App"),
   theme = bs_theme(version = 5, bootswatch = "flatly"),
   fillable = FALSE,
 
   # ── Tab 1: Configuration ───────────────────────────────────────────────────
   nav_panel(
-    title = "Configuration",
-    icon  = bs_icon("gear-fill"),
+    title = "Meta-data",
+    icon  = bs_icon("gear"),
 
     layout_columns(
       col_widths = c(6, 6),
-
       card(
         card_header("Data Settings"),
         textInput("path", "Path to data files",
-                  value = "~/Dokumente/GitHub/PAM/data/test",
+                  value = "D:/BirdNET/",
                   width = "100%"),
         input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
         input_switch("recursive",  "Recursive directory search",          value = TRUE),
-        input_switch("hyperlink",  "Create hyperlinks to extracted events", value = TRUE),
-        input_switch("spectro",    "Create spectrograms for extracted events", value = FALSE)
+        input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
+        input_switch("spectro",    "Create spectrograms", value = FALSE)
       ),
 
       card(
         card_header("BirdNET Meta Data"),
         layout_columns(
           col_widths = c(6, 6),
-          textInput("location", "Location", value = ""),
-          selectInput("device", "Device", choices = c("AudioMoth", "SM"))
+          textInput("location", "Location name", value = "None"),
+          selectInput("device", "Recorder", choices = c("AudioMoth", "SongMeter"))
         ),
         layout_columns(
           col_widths = c(6, 6),
           numericInput("lat", "Latitude",  value = NA),
           numericInput("lon", "Longitude", value = NA)
         ),
-        textInput("micro", "Microphone", value = ""),
+        textInput("micro", "External Microphone", value = ""),
         layout_columns(
           col_widths = c(4, 4, 4),
           numericInput("min_conf",    "Min. Confidence", value = 0.7,  min = 0,   max = 1,   step = 0.05),
           numericInput("overlap",     "Overlap",         value = 0,    min = 0,   max = 1,   step = 0.1),
           numericInput("sensitivity", "Sensitivity",     value = 1.25, min = 0.5, max = 1.5, step = 0.05)
         ),
-        textInput("slist", "Species list", value = "BirdNET_V2.4")
+        selectInput("slist", "Model", choices = c("BirdNET_V2.4", "Perch v2"))
       )
     ),
 
@@ -58,8 +59,8 @@ ui <- page_navbar(
       card_header("Archive Settings"),
       layout_columns(
         col_widths = c(5, 5, 1, 1),
-        textInput("path2archive", "Archive path",           value = "~/PAM/Records/", width = "100%"),
-        textInput("db",           "Database path (.xlsx)",  value = "~/PAM/db.xlsx",  width = "100%"),
+        textInput("path2archive", "Archive path",           value = "D:/BirdNET/test/Records/", width = "100%"),
+        textInput("db",           "Database path (.xlsx)",  value = "D:/BirdNET/test/db.xlsx",  width = "100%"),
         div(class = "mt-2", input_switch("keep_false", "Keep false positives", value = FALSE)),
         div(class = "mt-2", input_switch("png",        "Export PNG",           value = FALSE))
       )
@@ -68,8 +69,8 @@ ui <- page_navbar(
 
   # ── Tab 2: Workflow ────────────────────────────────────────────────────────
   nav_panel(
-    title = "Workflow",
-    icon  = bs_icon("play-circle-fill"),
+    title = "Processing",
+    icon  = bs_icon("play-btn"),
 
     layout_columns(
       col_widths = c(3, 9),
@@ -81,36 +82,34 @@ ui <- page_navbar(
           open = TRUE,
 
           accordion_panel(
-            title = "1 · Prepare",
+            title = "1 · Preprocessing",
             icon  = bs_icon("folder2-open"),
             actionButton("run_rename", "Rename files to datetime",
-                         class = "btn-outline-primary w-100 mb-1")
+                         class = "btn-outline-success w-100 mb-1")
           ),
 
           accordion_panel(
-            title = "2 · Analyze",
+            title = "2 · AI Classification",
             icon  = bs_icon("cpu"),
-            p(class = "text-muted small mb-1",
-              "Activate the BirdNET virtualenv and run the Python analyzer from a terminal:"),
-            tags$pre(class = "bg-light p-2 rounded small",
-                     "cd ~/birdnet\nsource birdnet/bin/activate\npython -m birdnet_analyzer.analyze"),
-            hr(class = "my-2"),
-            actionButton("run_birdnet_r", "Run via birdnetR (in-session)",
+            #hr(class = "my-2"),
+            actionButton("run_birdnet_r", "Run BirdNET (birdnetR)",
                          class = "btn-outline-success w-100")
           ),
 
           accordion_panel(
-            title = "3 · Format & Extract",
-            icon  = bs_icon("table"),
-            actionButton("run_format",  "Format BirdNET results",
-                         class = "btn-outline-primary w-100 mb-1"),
-            actionButton("run_extract", "Extract BirdNET results",
-                         class = "btn-outline-primary w-100")
+            title = "3 · Postprocessing BirdNET output",
+            icon  = bs_icon("file-earmark-spreadsheet"),
+            actionButton("run_format",  "Format results",
+                         class = "btn-outline-success w-100 mb-1"),
+            actionButton("run_filter",  "Filter by species (ornitho_de)",
+                         class = "btn-outline-success w-100 mb-1"),
+            actionButton("run_extract", "Extract detections",
+                         class = "btn-outline-success w-100")
           ),
 
           accordion_panel(
-            title = "4 · Archive",
-            icon  = bs_icon("archive-fill"),
+            title = "4 · Archiving",
+            icon  = bs_icon("archive"),
             actionButton("run_archive", "Archive results",
                          class = "btn-outline-danger w-100")
           )
@@ -133,7 +132,7 @@ ui <- page_navbar(
   # ── Tab 3: Results ─────────────────────────────────────────────────────────
   nav_panel(
     title = "Results",
-    icon  = bs_icon("bar-chart-fill"),
+    icon  = bs_icon("database"),
 
     layout_columns(
       col_widths = c(3, 9),
@@ -150,11 +149,11 @@ ui <- page_navbar(
       navset_card_underline(
         full_screen = TRUE,
         nav_panel(
-          "Detection Table",
+          "Detections",
           DT::dataTableOutput("results_table")
         ),
         nav_panel(
-          "Daily Activity",
+          "Activity plot",
           plotOutput("activity_plot", height = "420px")
         )
       )
@@ -163,12 +162,17 @@ ui <- page_navbar(
 )
 
 
-# ── Server ────────────────────────────────────────────────────────────────────
+# Server -----------------------------------------------------------------------
 
 server <- function(input, output, session) {
   thematic::thematic_shiny()
 
-  # ── Log helpers ─────────────────────────────────────────────────────────────
+  # Set default root and default folder
+  roots <- c(default = "D:/BirdNET/")
+
+  shinyFiles::shinyDirChoose(input, "path", roots = roots)
+
+  ## Log helpers ----
   log_rv <- reactiveVal(character(0))
 
   add_log <- function(msg, level = "INFO") {
@@ -180,44 +184,55 @@ server <- function(input, output, session) {
   output$log <- renderText(paste(log_rv(), collapse = "\n"))
   observeEvent(input$clear_log, log_rv(character(0)))
 
-  # ── Step 1: Rename files ───────────────────────────────────────────────────
+  # observeEvent(input$pick_folder, {
+  #   folder <- choose.dir(default = "D:/BirdNET/test/")
+  #   if (!is.na(folder)) {
+  #     updateTextInput(session, "path", value = folder)
+  #   }
+  # })
+
+  ## Step 1: Preprocessing ----
   observeEvent(input$run_rename, {
     req(input$path)
     add_log(paste("Renaming files in:", input$path))
     tryCatch({
       MonitoR::strip_device_id(input_dir = input$path)
-      add_log("Files renamed successfully.")
+      add_log("Files renamed successfully")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  # ── Step 2 (R): Run BirdNET via birdnetR ──────────────────────────────────
+  ## Step 2: BirdNET-Analyzer ----
   observeEvent(input$run_birdnet_r, {
     req(input$path)
-    add_log("Scanning for wav files...")
+    add_log("Scanning for wav files ...")
     tryCatch({
       wav_files <- list.files(
         input$path, pattern = "\\.wav$",
         full.names = TRUE, recursive = input$recursive, ignore.case = TRUE
       )
+      ## ignore subfolder 'extracted' if present
+      wav_files <- wav_files[!stringr::str_detect(wav_files, "extracted")]
       if (length(wav_files) == 0) {
         add_log("No .wav files found in the specified path.", "WARN")
         return()
       }
-      add_log(paste("Found", length(wav_files), "file(s). Starting birdNET_process_batch..."))
+      add_log(paste("Found", length(wav_files), "file(s)"))
+      add_log(paste("Starting birdnetR ..."))
+
       birdNET_process_batch(
         wave_files          = wav_files,
         min_confidence      = input$min_conf,
         chunk_overlap_s     = input$overlap,
         sigmoid_sensitivity = input$sensitivity
       )
-      add_log("birdNET_process_batch completed.")
+      add_log("Classification completed")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  # ── Step 3a: Format BirdNET results ───────────────────────────────────────
+  ## Step 3.1.1: Format BirdNET results ----
   observeEvent(input$run_format, {
     req(input$path)
-    add_log("Formatting BirdNET results...")
+    add_log("Reformatting BirdNET results ...")
     tryCatch({
       meta <- NocMigR2::BirdNET_meta(
         Location    = if (nzchar(input$location)) input$location else NA,
@@ -236,26 +251,36 @@ server <- function(input, output, session) {
         recursive = input$recursive,
         meta      = meta
       )
-      n <- if (!is.null(data[[1]])) nrow(data[[1]]) else "?"
-      add_log(paste("BirdNET results formatted.", n, "records."))
+      n <- nrow(data[[1]][['Records']])
+      add_log(paste("BirdNET results formatted", n, "records found"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  # ── Step 3b: Extract BirdNET results ──────────────────────────────────────
+  ## Step 3.1.2: Filter BirdNET results ----
+  observeEvent(input$run_filter, {
+    req(input$path)
+    add_log("Filter by species list ...")
+    tryCatch({
+      data <- MonitoR::birdNET_select(path = input$path)
+      add_log(paste("BirdNET results filtered",  nrow(data), "records retained"))
+    }, error = function(e) add_log(e$message, "ERROR"))
+  })
+
+  ## Step 3.2: Extract BirdNET results ----
   observeEvent(input$run_extract, {
     req(input$path)
-    add_log("Extracting BirdNET results...")
+    add_log("Extracting BirdNET results ...")
     tryCatch({
       lapply(
         input$path, NocMigR2::BirdNET_extract,
         hyperlink = input$hyperlink,
         spectro   = input$spectro
       )
-      add_log("Extraction complete.")
+      add_log("Extraction completed")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  # ── Step 4: Archive ────────────────────────────────────────────────────────
+  ## Step 4: Archive ----
   observeEvent(input$run_archive, {
     req(input$path, input$path2archive, input$db)
     add_log("Archiving results...")
@@ -271,7 +296,7 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  # ── Results: load BirdNET.xlsx ─────────────────────────────────────────────
+  # Results: load BirdNET.xlsx ----
   results_data <- eventReactive(input$load_results, {
     req(input$path)
     fp <- file.path(input$path, "BirdNET.xlsx")
@@ -285,7 +310,7 @@ server <- function(input, output, session) {
   output$taxon_ui <- renderUI({
     req(results_data())
     taxa <- sort(unique(results_data()$Taxon))
-    selectInput("taxon", "Taxon (for activity plot)", choices = taxa, width = "100%")
+    selectInput("taxon", "Focal taxon", choices = taxa, width = "100%")
   })
 
   output$summary_boxes <- renderUI({
@@ -295,7 +320,7 @@ server <- function(input, output, session) {
     ntax <- n_distinct(df$Taxon)
     tagList(
       value_box("Detections", n,    theme = "primary", showcase = bs_icon("soundwave")),
-      value_box("Species",    ntax, theme = "success", showcase = bs_icon("bug-fill"))
+      value_box("Species",    ntax, theme = "success", showcase = bs_icon("feather"))
     )
   })
 
