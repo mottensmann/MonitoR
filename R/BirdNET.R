@@ -292,7 +292,6 @@ write_birdnet_slist <- function(sci_names = c('Bubo bubo', 'Buteo butep'), filen
 #' @param slist path to custom species list
 #' @param model one of 'BirdNET v2.4' or 'Perch v2'
 #' @importFrom dplyr filter
-#' @importFrom NocMigR2 reformat_xlsx
 #' @export
 #'
 birdNET_select <- function(path = NULL,
