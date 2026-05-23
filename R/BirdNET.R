@@ -2,14 +2,18 @@
 #'
 #' @param taxon Taxon name
 #' @param path path
+#' @param model model used to classifiy
 #' @import ggplot2
 #' @import dplyr
 #' @importFrom lubridate hour
 #' @importFrom readxl read_xlsx
 #' @importFrom tidyr complete
+#' @importFrom egg  theme_presentation
 #' @export
 #'
-birdNET_graph <- function(path, taxon) {
+birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
+
+  model <- match.arg(model)
 
   Taxon <- T1 <- hh <- NA
   ## Load and filter dataset
@@ -25,17 +29,18 @@ birdNET_graph <- function(path, taxon) {
   plot <- df |>
     count(hh) |>
     tidyr::complete(hh = 0:23, fill = list(n = 0)) |>
-    ggplot(aes(x = hh, y = n)) +
-    geom_bar(stat = 'identity', col = "black", fill = "darkorange") +
+    ggplot(aes(x = hh, y = n, fill = Verification)) +
+    geom_bar(stat = 'identity', col = "black") +
     scale_x_continuous(breaks = 0:23, expand = c(0, 0)) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
     labs(
       title    = taxon,
       x = "Hour",
       y = "Events",
-      caption = paste("BirdNET v2.4", 'Detektionen:', nrow(df), '\n', min(df$T1), '-', max(df$T1))
+      caption = paste0(nrow(df), ' events', ' (', model, ')', '\n', min(df$T1), '-', max(df$T1))
     ) +
-    theme_minimal(base_size = 13) +
+    egg::theme_presentation()
+
     theme(panel.grid = element_blank())
   return(plot)
 }
@@ -200,23 +205,33 @@ birdNET_process_batch <- function(
 #' Read and subset species list from BirdNET v2.4 model
 #'
 #' @param language language. defaults to 'de'
+#' @param .cached logical
 #' @export
 #'
-read_birdnet_slist <- function(language = 'de') {
-  ## read model
-  model = birdnetR::birdnet_model_tflite(language = language)
-  ## read labels
-  slist <- birdnetR::read_labels(birdnetR::labels_path(model, language = language))
+read_birdnet_slist <- function(language = 'de', .cached = F) {
 
-  ## format slist
-  slist <- lapply(slist, function(name) {
-    out <- stringr::str_split(name, "_")
-    data.frame(
-      name = name,
-      name_scientific = out[[1]][1],
-      name_de = out[[1]][2])
-  })
-  slist <- do.call("rbind", slist)
+  if (isFALSE(.cached)) {
+    ## read model
+    model = birdnetR::birdnet_model_tflite(language = language)
+    ## read labels
+    slist <- birdnetR::read_labels(birdnetR::labels_path(model, language = language))
+
+    ## format slist
+    slist <- lapply(slist, function(name) {
+      out <- stringr::str_split(name, "_")
+      data.frame(
+        name = name,
+        name_scientific = out[[1]][1],
+        name_de = out[[1]][2])
+    })
+    slist <- do.call("rbind", slist)
+  } else if (isTRUE(.cached)) {
+    slist <- readr::read_delim(system.file("extdata/BirdNET_v2.4.txt", package = "MonitoR"),
+                               delim = " ",
+                               col_names = c('name', 'name_scientific', 'name_de'),
+                               show_col_types = F)
+  }
+
   return(slist)
 }
 
@@ -236,8 +251,8 @@ write_birdnet_slist <- function(sci_names = c('Bubo bubo', 'Buteo butep'), filen
 
   name_scientific <-
 
-  ## read labels from birdnet model
-  slist <- read_birdnet_slist(language = language)
+    ## read labels from birdnet model
+    slist <- read_birdnet_slist(language = language)
 
   ## filter based on sci_names
   slist_custom <- dplyr::filter(slist, name_scientific %in% sci_names)
@@ -257,5 +272,48 @@ write_birdnet_slist <- function(sci_names = c('Bubo bubo', 'Buteo butep'), filen
   }
   utils::write.table(x = slist_custom[["name"]], file = filename, row.names = F, col.names = F, quote = F)
   return(out)
+}
+
+#' Filter BirdNET selection tables by species
+#'
+#' @param path path to results
+#' @param slist path to custom species list
+#' @param model one of 'BirdNET v2.4' or 'Perch v2'
+#' @importFrom dplyr filter
+#' @export
+#'
+birdNET_select <- function(path = NULL,
+                           model = c('BirdNET v2.4', 'Perch v2'),
+                           slist = system.file("extdata/ornitho_de.txt", package = "MonitoR")) {
+  Taxon <- NULL
+  model <- match.arg(model)
+
+  ## 'BirdNET v2.4'
+  if (model == 'BirdNET v2.4') {
+    mlist <- read_birdnet_slist(.cached = T)
+    slist <- readr::read_delim(slist, delim = "_", col_names = c('name_scientific', 'name_de'), show_col_types = F)
+    slist[['name']] <- paste0(slist[["name_scientific"]], '_', slist[["name_de"]])
+    names_not_matched <- slist[["name"]][!slist[["name"]] %in% mlist[["name"]]]
+    if (length(names_not_matched)) warning('Not all species names found in model', model)
+  }
+
+  ## read and filter Records
+  Records <- readxl::read_xlsx(file.path(path, "BirdNET.xlsx"))
+
+  before <- nrow(Records)
+  Records <- dplyr::filter(Records, Taxon %in% slist[["name_de"]])
+  after <- nrow(Records)
+  message('Filtered Records: From ', before, ' to ', after)
+
+  Meta <- readxl::read_xlsx(file.path(path, "BirdNET.xlsx"), sheet = 'Meta')
+  out <- list(
+    Records = Records,
+    #Records.dd = BirdNET_table$records.day,
+    #Records.hh = BirdNET_table$records.hour,
+    Meta = Meta)
+  openxlsx::write.xlsx(x = out,
+                       file = file.path(path, "BirdNET.xlsx"), overwrite = T)
+  NocMigR2::reformat_xlsx(path = path)
+  return(Records)
 }
 

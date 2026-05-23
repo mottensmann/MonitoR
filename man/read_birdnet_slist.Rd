@@ -4,10 +4,12 @@
 \alias{read_birdnet_slist}
 \title{Read and subset species list from BirdNET v2.4 model}
 \usage{
-read_birdnet_slist(language = "de")
+read_birdnet_slist(language = "de", .cached = F)
 }
 \arguments{
 \item{language}{language. defaults to 'de'}
+
+\item{.cached}{logical}
 }
 \description{
 Read and subset species list from BirdNET v2.4 model

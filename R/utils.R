@@ -102,7 +102,7 @@ strip_device_id <- function(input_dir, pattern = ".WAV", recursive = T, ignore.c
   if (isTRUE(.simulate)) {
     cat("Preview of file renaming!")
     x <- data.frame(old = basename(wave_files),
-                     new = files_new)
+                    new = files_new)
     utils::head(x)
   } else {
     ## compare strings

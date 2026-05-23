@@ -4,12 +4,14 @@
 \alias{birdNET_graph}
 \title{Daily activity graph}
 \usage{
-birdNET_graph(path, taxon)
+birdNET_graph(path, taxon, model = c("BirdNET_V2.4", "Perch v2"))
 }
 \arguments{
 \item{path}{path}
 
 \item{taxon}{Taxon name}
+
+\item{model}{model used to classifiy}
 }
 \description{
 Daily activity graph
