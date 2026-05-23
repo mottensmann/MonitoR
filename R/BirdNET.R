@@ -15,11 +15,18 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
 
   model <- match.arg(model)
 
-  Taxon <- T1 <- hh <- NA
+  Taxon <- T1 <- hh <- Verification <- NA
   ## Load and filter dataset
   df <- readxl::read_xlsx(file.path(path, "BirdNET.xlsx")) %>%
     dplyr::filter(Taxon == taxon) %>%
-    dplyr::mutate(hh = lubridate::hour(T1))
+    dplyr::mutate(
+      hh = lubridate::hour(T1),
+      Verification = dplyr::case_when(
+        Verification == TRUE | tolower(Verification) == "t" ~ "Verified",
+        Verification == FALSE | tolower(Verification) == "f" ~ "Rejected",
+        .default = "Not verified"
+      )
+    )
 
   ## get plot dimensions
   max_n <- df |> count(hh) |> pull(n) |> max()
@@ -27,20 +34,25 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
 
   ## create plot
   plot <- df |>
-    count(hh) |>
-    tidyr::complete(hh = 0:23, fill = list(n = 0)) |>
+    count(hh, Verification) |>
+    tidyr::complete(hh = 0:23, Verification, fill = list(n = 0)) |>
     ggplot(aes(x = hh, y = n, fill = Verification)) +
     geom_bar(stat = 'identity', col = "black") +
     scale_x_continuous(breaks = 0:23, expand = c(0, 0)) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+    scale_fill_manual(
+      values = c(Verified = "#4daf4a",
+                 Rejected = "#e41a1c",
+                 "Not verified" = "#377eb8"),
+      guide = guide_legend(title = "Verification")
+    ) +
     labs(
       title    = taxon,
       x = "Hour",
       y = "Events",
       caption = paste0(nrow(df), ' events', ' (', model, ')', '\n', min(df$T1), '-', max(df$T1))
     ) +
-    egg::theme_presentation()
-
+    egg::theme_presentation() +
     theme(panel.grid = element_blank())
   return(plot)
 }
@@ -280,6 +292,7 @@ write_birdnet_slist <- function(sci_names = c('Bubo bubo', 'Buteo butep'), filen
 #' @param slist path to custom species list
 #' @param model one of 'BirdNET v2.4' or 'Perch v2'
 #' @importFrom dplyr filter
+#' @importFrom NocMigR2 reformat_xlsx
 #' @export
 #'
 birdNET_select <- function(path = NULL,
