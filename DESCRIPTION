@@ -15,10 +15,13 @@ Encoding: UTF-8
 Imports: 
   birdnetR,
   dplyr,
+  egg,
   exifr,
   ggplot2,
   lubridate,
   methods,
+  openxlsx,
+  shiny,
   pbapply,
   stringr,
   readxl,
@@ -27,3 +30,7 @@ Imports:
 Remotes: 
   mottensmann/NocMigR2
 Config/roxygen2/version: 8.0.0
+RoxygenNote: 8.0.0
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
