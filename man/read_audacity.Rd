@@ -15,7 +15,7 @@ read_audacity(
 
 \item{pattern}{pattern to recognise}
 
-\item{delim}{delimeter}
+\item{delim}{delim}
 }
 \description{
 read audacity labels

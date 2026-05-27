@@ -70,9 +70,6 @@ ui <- page_navbar(
         div(class = "mt-2 p-2 bg-light rounded text-monospace text-break",
             style = "font-size: 0.9rem; min-height: 40px;",
             textOutput("path_display")),
-        # textInput("path", "Path to data files",
-        #           value = "D:/BirdNET/",
-        #           width = "100%"),
         input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
         input_switch("recursive",  "Recursive directory search",          value = TRUE),
         input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
@@ -279,7 +276,7 @@ server <- function(input, output, session) {
       add_log(paste("Found", length(wav_files), "file(s)"))
       add_log(paste("Starting birdnetR ..."))
 
-      birdNET_process_batch(
+      MonitoR::birdNET_process_batch(
         wave_files          = wav_files,
         min_confidence      = input$min_conf,
         chunk_overlap_s     = input$overlap,
@@ -479,7 +476,7 @@ server <- function(input, output, session) {
   output$activity_plot <- renderPlot({
     req(results_data(), input$taxon)
     tryCatch(
-      birdNET_graph(path = selected_dir(), taxon = input$taxon),
+      MonitoR::birdNET_graph(path = selected_dir(), taxon = input$taxon),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")

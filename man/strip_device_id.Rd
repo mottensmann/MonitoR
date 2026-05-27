@@ -27,5 +27,5 @@ strip_device_id(
 Retrieves timestamps from file names, expecting format YYYMMDD_HHMMSS as the sub-fix.
 }
 \details{
-Use with caution as the functions simply retrieves the last 14 chacters of the file name. If unsure set \code{.simulate = TRUE}. Folders named 'extracted' are skipped!
+Use with caution as the functions simply retrieves the last 14 characters of the file name. If unsure set \code{.simulate = TRUE}. Folders named 'extracted' are skipped!
 }

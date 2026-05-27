@@ -77,7 +77,7 @@ rename_photo2datetime <- function(input_dir,
 #' Retrieves timestamps from file names, expecting format YYYMMDD_HHMMSS as the sub-fix.
 #'
 #' @details
-#' Use with caution as the functions simply retrieves the last 14 chacters of the file name. If unsure set \code{.simulate = TRUE}. Folders named 'extracted' are skipped!
+#' Use with caution as the functions simply retrieves the last 14 characters of the file name. If unsure set \code{.simulate = TRUE}. Folders named 'extracted' are skipped!
 #'
 #'
 #' @param input_dir input folder
@@ -119,7 +119,7 @@ strip_device_id <- function(input_dir, pattern = ".WAV", recursive = T, ignore.c
 #'
 #' @param path path
 #' @param pattern pattern to recognise
-#' @param delim delimeter
+#' @param delim delim
 #' @importFrom readr read_delim
 #' @importFrom pbapply pblapply
 #' @export
