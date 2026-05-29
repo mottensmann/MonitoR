@@ -5,7 +5,7 @@
 \title{Write custom species list}
 \usage{
 write_birdnet_slist(
-  sci_names = c("Bubo bubo", "Buteo butep"),
+  sci_names = c("Bubo bubo", "Buteo buteo"),
   filename = NULL,
   language = "de"
 )
