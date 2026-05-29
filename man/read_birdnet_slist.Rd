@@ -2,15 +2,17 @@
 % Please edit documentation in R/BirdNET.R
 \name{read_birdnet_slist}
 \alias{read_birdnet_slist}
-\title{Read and subset species list from BirdNET v2.4 model}
+\title{Read and subset species list from models}
 \usage{
-read_birdnet_slist(language = "de", .cached = F)
+read_birdnet_slist(model = c("BirdNET v2.4"), language = "de", .cached = F)
 }
 \arguments{
+\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
+
 \item{language}{language. defaults to 'de'}
 
 \item{.cached}{logical}
 }
 \description{
-Read and subset species list from BirdNET v2.4 model
+Read and subset species list from models
 }

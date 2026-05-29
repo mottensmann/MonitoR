@@ -63,7 +63,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
 #' @description
 #' Creates a text file with labels for use in Audacity matching --rtype 'audacity' when using [BirdNET-Analyzer](https://github.com/birdnet-team/BirdNET-Analyzer)
 #'
-#' @param predictions list of data frames returned by \link[birdnetR]{predict_species_from_audio_file}
+#' @param predictions list of data frames returned by birdnetR
 #' @param wave_files path to wave_files in order of data frames
 #' @importFrom readr write_delim
 #' @importFrom stringr str_replace
@@ -83,6 +83,7 @@ birdnet2audacity <- function(predictions, wave_files) {
       ## check if there is at least one prediction or skip
       if (nrow(df) > 1) {
         ## tweak label
+        df <- cbind(df, split_species_names(df[["species_name"]]))
         df <- data.frame(start = df$start,
                          end = df$end,
                          name = paste0(df$scientific_name, ", ", df$common_name),
@@ -100,13 +101,17 @@ birdnet2audacity <- function(predictions, wave_files) {
       }
     }
   } else if (methods::is(predictions, 'data.frame')) {
-    df <- predictions
-    if (nrow(df) > 1) {
+    if (nrow(predictions) > 1) {
+
+      df <- cbind(predictions, split_species_names(predictions[["species_name"]]))
+
       ## tweak label
-      df <- data.frame(start = df$start,
-                       end = df$end,
-                       name = paste0(df$scientific_name, ", ", df$common_name),
-                       score = df$confidence)
+      df <- data.frame(
+        start = df$start,
+        end = df$end,
+        name = paste0(df$scientific_name, ", ", df$common_name),
+        score = df$confidence)
+
       ## write to file
       readr::write_delim(
         delim = "\t",
@@ -121,38 +126,61 @@ birdnet2audacity <- function(predictions, wave_files) {
   }
 }
 
-#' Execute \link[birdnetR]{predict_species_from_audio_file} with custom settings
+#' Execute \link[=predict.birdnet_model_acoustic]{birdnet.predict()} with custom settings
+#'
+#' @description
+#' Runs \link[=predict.birdnet_model_acoustic]{birdnet.predict()} on audio files
+#'
 #' @param audio audio file
-#' @param slist species_list as character vector
-#' @param language \link[birdnetR]{predict_species_from_audio_file}
-#' @param batch_size see \link[birdnetR]{predict_species_from_audio_file}
-#' @param min_confidence see \link[birdnetR]{predict_species_from_audio_file}
-#' @param chunk_overlap_s see \link[birdnetR]{predict_species_from_audio_file}
-#' @param sigmoid_sensitivity see \link[birdnetR]{predict_species_from_audio_file}
-#' @return see \link[birdnetR]{predict_species_from_audio_file}
-#' @importFrom birdnetR predict_species_from_audio_file
-#' @importFrom birdnetR birdnet_model_tflite
+#' @param model one of c('BirdNET v2.4', 'Perch v2')
+#' @param slist see \code{species_list} in \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @param language see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @param batch_size see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @param min_confidence see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @param chunk_overlap_s see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @param sigmoid_sensitivity see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @return see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @importFrom birdnetR load_birdnet
 #' @export
 #'
 birdNET_process <- function(
     audio,
+    model = c('BirdNET v2.4', 'Perch v2'),
     slist = NULL,
     language = 'de',
-    batch_size = 1,
+    batch_size = NULL,
     min_confidence = 0.7,
     chunk_overlap_s = 0,
     sigmoid_sensitivity = 1.25) {
 
-  results <- birdnetR::predict_species_from_audio_file(
-    batch_size = as.integer(batch_size),
-    audio_file = audio,
-    model = birdnetR::birdnet_model_tflite(language = language),
+  # upgrading to birdnetR 1.0 [2026-05-29] -------------------
+
+  ### select model -------------------------------------------
+  model <- match.arg(model)
+  if (model == 'BirdNET v2.4') {
+    model = birdnetR::load_birdnet(type = 'acoustic', version = '2.4', language = language)
+  } else if (model == 'Perch v2') {
+    stop('Perch v2 not yet working')
+    model = birdnetR::load_perch()
+    # └─birdnetR::load_perch()
+    # 2.   └─py_birdnet$load_perch_v2("CPU")
+    # 3.     └─reticulate:::py_call_impl(callable, call_args$unnamed, call_args$named)
+    # See `reticulate::py_last_error()$r_trace$full_call` for more details.
+  }
+
+  ## Predict species -----------------------------------------
+  results <- stats::predict(
+    object = model,
+    files = tools::file_path_as_absolute(audio),
     min_confidence = min_confidence,
     chunk_overlap_s = chunk_overlap_s,
     sigmoid_sensitivity = sigmoid_sensitivity,
-    filter_species = slist,
-    keep_empty = F)
-  return(results)
+    top_k = 1,
+    species_list = slist,
+    batch_size = batch_size)
+
+  ## return results ------------------------------------------
+  return(as.data.frame(results))
 }
 
 #' Split execution of \link{birdNET_process} in sets of wave files
@@ -165,6 +193,7 @@ birdNET_process <- function(
 #'
 birdNET_process_batch <- function(
     wave_files,
+    model = c('BirdNET v2.4', 'Perch v2'),
     n = 12,
     slist = NULL,
     language = 'de',
@@ -174,6 +203,9 @@ birdNET_process_batch <- function(
     chunk_overlap_s = 0,
     sigmoid_sensitivity = 1.25) {
 
+  # upgrading to birdnetR 1.0 [2026-05-29] -------------------
+  model <- match.arg(model)
+
   if (!is.null(restart)) {
     wave_files <- wave_files[restart:length(wave_files)]
   }
@@ -182,7 +214,6 @@ birdNET_process_batch <- function(
   chunks <- unique(c(seq(0, length(wave_files), n), length(wave_files)))
 
   # Create a progress bar
-  # pb <- utils::txtProgressBar(min = 0, max = length(chunks), style = 3)
   pb <- utils::txtProgressBar(min = 0, max = length(wave_files), style = 3)
 
   cat(paste0('Start: ',as.character(strftime(Sys.time(),format = "%Y-%m-%d %H:%M:%S")),'\n\n'))
@@ -192,16 +223,20 @@ birdNET_process_batch <- function(
       cat('Process recording', x, 'out of', max(chunks), "\n")
       utils::setTxtProgressBar(pb, x)
       cat("\n")
-      birdNET_process(audio = wave_files[[x]],
-                      language = 'de',
-                      slist = slist,
-                      batch_size = batch_size,
-                      min_confidence = min_confidence,
-                      chunk_overlap_s = chunk_overlap_s,
-                      sigmoid_sensitivity = sigmoid_sensitivity)
+      birdNET_process(
+        model = model,
+        audio = wave_files[[x]],
+        language = 'de',
+        slist = slist,
+        batch_size = batch_size,
+        min_confidence = min_confidence,
+        chunk_overlap_s = chunk_overlap_s,
+        sigmoid_sensitivity = sigmoid_sensitivity)
     })
     ## export audacity labels
-    birdnet2audacity(predictions = predictions, wave_files = wave_files[chunks[chunk]:chunks[chunk + 1]])
+    birdnet2audacity(
+      predictions = predictions,
+      wave_files = wave_files[chunks[chunk]:chunks[chunk + 1]])
     return(predictions)
   })
 
@@ -214,19 +249,27 @@ birdNET_process_batch <- function(
 }
 
 
-#' Read and subset species list from BirdNET v2.4 model
+#' Read and subset species list from models
 #'
+#' @inheritParams birdNET_process
 #' @param language language. defaults to 'de'
 #' @param .cached logical
 #' @export
 #'
-read_birdnet_slist <- function(language = 'de', .cached = F) {
-
+read_birdnet_slist <- function(
+    model = c('BirdNET v2.4'),
+    language = 'de',
+    .cached = F) {
+  # upgrading to birdnetR 1.0 [2026-05-29] -------------------
   if (isFALSE(.cached)) {
+    model <- match.arg(model)
+
     ## read model
-    model = birdnetR::birdnet_model_tflite(language = language)
+    if (model == 'BirdNET v2.4') {
+      model = birdnetR::load_birdnet(type = 'acoustic', version = '2.4', language = language)
+    }
     ## read labels
-    slist <- birdnetR::read_labels(birdnetR::labels_path(model, language = language))
+    slist <- birdnetR::get_species_list(model)
 
     ## format slist
     slist <- lapply(slist, function(name) {
@@ -259,12 +302,15 @@ read_birdnet_slist <- function(language = 'de', .cached = F) {
 #' ## Write species list to file
 #' # out <- write_birdnet_slist(names[['Names']], "inst/extdata/ornitho_de.txt")
 #'
-write_birdnet_slist <- function(sci_names = c('Bubo bubo', 'Buteo butep'), filename = NULL, language = 'de') {
+write_birdnet_slist <- function(
+    sci_names = c('Bubo bubo', 'Buteo buteo'),
+    filename = NULL,
+    language = 'de') {
 
-  name_scientific <-
+  name_scientific <- NA
 
-    ## read labels from birdnet model
-    slist <- read_birdnet_slist(language = language)
+  ## read labels from birdnet model
+  slist <- read_birdnet_slist(language = language)
 
   ## filter based on sci_names
   slist_custom <- dplyr::filter(slist, name_scientific %in% sci_names)
@@ -294,9 +340,10 @@ write_birdnet_slist <- function(sci_names = c('Bubo bubo', 'Buteo butep'), filen
 #' @importFrom dplyr filter
 #' @export
 #'
-birdNET_select <- function(path = NULL,
-                           model = c('BirdNET v2.4', 'Perch v2'),
-                           slist = system.file("extdata/ornitho_de.txt", package = "MonitoR")) {
+birdNET_select <- function(
+    path = NULL,
+    model = c('BirdNET v2.4', 'Perch v2'),
+    slist = system.file("extdata/ornitho_de.txt", package = "MonitoR")) {
   Taxon <- NULL
   model <- match.arg(model)
 

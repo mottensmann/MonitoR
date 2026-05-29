@@ -2,13 +2,14 @@
 % Please edit documentation in R/BirdNET.R
 \name{birdNET_process}
 \alias{birdNET_process}
-\title{Execute \link[birdnetR]{predict_species_from_audio_file} with custom settings}
+\title{Execute \link[=predict.birdnet_model_acoustic]{birdnet.predict()} with custom settings}
 \usage{
 birdNET_process(
   audio,
+  model = c("BirdNET v2.4", "Perch v2"),
   slist = NULL,
   language = "de",
-  batch_size = 1,
+  batch_size = NULL,
   min_confidence = 0.7,
   chunk_overlap_s = 0,
   sigmoid_sensitivity = 1.25
@@ -17,21 +18,23 @@ birdNET_process(
 \arguments{
 \item{audio}{audio file}
 
-\item{slist}{species_list as character vector}
+\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
 
-\item{language}{\link[birdnetR]{predict_species_from_audio_file}}
+\item{slist}{see \code{species_list} in \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{batch_size}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{language}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{min_confidence}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{batch_size}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{chunk_overlap_s}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{min_confidence}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{sigmoid_sensitivity}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{chunk_overlap_s}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
+
+\item{sigmoid_sensitivity}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 }
 \value{
-see \link[birdnetR]{predict_species_from_audio_file}
+see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
 }
 \description{
-Execute \link[birdnetR]{predict_species_from_audio_file} with custom settings
+Runs \link[=predict.birdnet_model_acoustic]{birdnet.predict()} on audio files
 }

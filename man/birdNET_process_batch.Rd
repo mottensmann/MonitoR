@@ -6,6 +6,7 @@
 \usage{
 birdNET_process_batch(
   wave_files,
+  model = c("BirdNET v2.4", "Perch v2"),
   n = 12,
   slist = NULL,
   language = "de",
@@ -19,21 +20,23 @@ birdNET_process_batch(
 \arguments{
 \item{wave_files}{audio files to process}
 
+\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
+
 \item{n}{number of audio files to process in a single run}
 
-\item{slist}{species_list as character vector}
+\item{slist}{see \code{species_list} in \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{language}{\link[birdnetR]{predict_species_from_audio_file}}
+\item{language}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{batch_size}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{batch_size}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
 \item{restart}{optional. restart iteration from here}
 
-\item{min_confidence}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{min_confidence}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{chunk_overlap_s}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{chunk_overlap_s}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 
-\item{sigmoid_sensitivity}{see \link[birdnetR]{predict_species_from_audio_file}}
+\item{sigmoid_sensitivity}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
 }
 \description{
 Split execution of \link{birdNET_process} in sets of wave files
