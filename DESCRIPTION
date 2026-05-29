@@ -1,7 +1,7 @@
 Package: MonitoR
 Type: Package
 Title: Cleaning, Analysing & Validating Monitoring data
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(
     person(
       "Meinolf", "Ottensmann",
@@ -13,7 +13,7 @@ Description: Suite of functions to automatise analyses and validation of monitor
 License: GPL (>= 3)
 Encoding: UTF-8
 Imports: 
-  birdnetR,
+  birdnetR (>= 0.3.2.9000),
   dplyr,
   egg,
   exifr,
@@ -28,7 +28,8 @@ Imports:
   readr,
   tidyr
 Remotes: 
-  mottensmann/NocMigR2
+  mottensmann/NocMigR2,
+  birdnet-team/birdnetR
 Config/roxygen2/version: 8.0.0
 RoxygenNote: 8.0.0
 Suggests: 
