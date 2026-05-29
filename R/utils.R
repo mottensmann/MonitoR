@@ -1,14 +1,3 @@
-#' Read BirdNET_analysis_params
-#'
-#' @param path path
-#' @param pattern defaults to 'BirdNET_analysis_params.csv'
-#' @export
-#'
-read_BirdNET_analysis_params <- function(path, pattern = 'BirdNET_analysis_params.csv') {
-  df <- readr::read_csv(file.path(path, pattern))
-  return(df)
-}
-
 #' Rename file names to YYYYMMDD_HHMMSS format
 #' @description
 #' Retrieve timestamps from file meta data and rename accordingly. If output_dir is specified files are copied, otherwise renamed.
@@ -151,3 +140,15 @@ read_audacity <- function(path, pattern = c('BirdNET.results.txt', 'BirdNET.labe
     return(do.call('rbind',results))
   }
 }
+
+#' splits species names
+#' @keywords internal
+split_species_names <- function(x) {
+  parts <- strsplit(x, "_")
+  df <- as.data.frame(do.call(rbind, parts), stringsAsFactors = FALSE)
+  names(df) <- c("scientific_name", "common_name")
+  df
+}
+
+
+
