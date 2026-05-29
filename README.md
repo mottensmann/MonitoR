@@ -18,13 +18,6 @@ To install the package, use
 devtools::install_github("mottensmann/MonitoR", dependencies = TRUE)
 ```
 
-*`NocMigR2` depends on `warbleR` which is currently (as of 2024-07-26)
-missing on CRAN. If the installation above fails try:*
-
-``` r
-devtools::install_github("maRce10/warbleR")
-```
-
 Load the package once installed:
 
 ``` r
