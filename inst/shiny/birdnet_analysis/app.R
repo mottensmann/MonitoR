@@ -95,7 +95,7 @@ ui <- page_navbar(
           numericInput("overlap",     "Overlap",         value = 0,    min = 0,   max = 1,   step = 0.1),
           numericInput("sensitivity", "Sensitivity",     value = 1.25, min = 0.5, max = 1.5, step = 0.05)
         ),
-        selectInput("slist", "Model", choices = c("BirdNET_V2.4", "Perch v2"))
+        selectInput("model", "Model", choices = c("BirdNET v2.4", "Perch v2"))
       )
     ),
 
@@ -229,9 +229,41 @@ server <- function(input, output, session) {
 
   ## Step 0: Pick folder ----
 
-  selected_dir <- reactiveVal("D:/BirdNET/test")
+  #' List availabe disks
+  #' @keywords internal
+  list_disks <- function() {
+    os <- Sys.info()[["sysname"]]
 
-  roots <- c(data = "D:/")
+    if (os == "Windows") {
+      # WMIC is deprecated on some systems, so try PowerShell if available
+      out <- try(system("wmic logicaldisk get name", intern = TRUE), silent = TRUE)
+
+      if (inherits(out, "try-error") || length(out) == 0) {
+        out <- system('powershell "Get-PSDrive -PSProvider FileSystem | Select-Object Name,Root"', intern = TRUE)
+      }
+
+      return(out)
+    }
+
+    if (os == "Darwin") {  # macOS
+      return(system("diskutil list", intern = TRUE))
+    }
+
+    if (os == "Linux") {
+      # lsblk gives the cleanest structured output
+      return(system("lsblk -f", intern = TRUE))
+    }
+
+    stop("Unsupported OS")
+  }
+
+  roots <- list_disks(); roots <- trimws(roots); names(roots) <- roots
+  roots <- roots[!(names(roots) == "Name")]
+  roots <- roots[!(names(roots) == "")]
+  roots <- c(wd = '.', home = path.expand("~"), roots)
+
+  selected_dir <- reactiveVal(roots[2])
+
   shinyDirChoose(input, "path", roots = roots, session = session)
   observeEvent(input$path, {
     if (is.null(input$path) || any(is.na(input$path))) return()
@@ -280,7 +312,8 @@ server <- function(input, output, session) {
         wave_files          = wav_files,
         min_confidence      = input$min_conf,
         chunk_overlap_s     = input$overlap,
-        sigmoid_sensitivity = input$sensitivity
+        sigmoid_sensitivity = input$sensitivity,
+        model               = input$model
       )
       add_log("Classification completed")
     }, error = function(e) add_log(e$message, "ERROR"))
@@ -300,7 +333,7 @@ server <- function(input, output, session) {
         Min_conf    = input$min_conf,
         Overlap     = input$overlap,
         Sensitivity = input$sensitivity,
-        Slist       = input$slist
+        Slist       = NA #input$slist
       )
       data <- lapply(
         selected_dir(), NocMigR2::BirdNET,

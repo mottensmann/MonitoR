@@ -2,6 +2,7 @@
 #' @export
 birdnet_app <- function() {
   app_dir <- system.file("shiny/birdnet_analysis", package = "MonitoR")
-  suppressMessages(shiny::runApp(app_dir, launch.browser = TRUE, quiet = T))
+  suppressMessages(shiny::runApp(app_dir, launch.browser =  getOption("shiny.launch.browser", interactive()), quiet = T))
 }
+
 
