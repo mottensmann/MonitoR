@@ -22,12 +22,12 @@ Imports:
   methods,
   openxlsx,
   shiny (>= 0.13),
-  shinyFiles,
   pbapply,
   stringr,
   readxl,
   readr,
-  tidyr
+  tidyr,
+  tuneR
 Remotes: 
   mottensmann/NocMigR2,
   birdnet-team/birdnetR
