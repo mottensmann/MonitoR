@@ -150,5 +150,76 @@ split_species_names <- function(x) {
   df
 }
 
+#' Split wave files in 10 minute segments
+#'
+#' @param path path
+#' @param pattern file format, .wav or .mp3
+#' @export
+#'
+split_waves <- function(path, pattern = c('.wav', '.mp3')) {
+  pattern <- match.arg(pattern)
+  ## get input files
+  waves <- list.files(path = path,
+                      pattern = pattern,
+                      ignore.case = T,
+                      recursive = T,
+                      full.names = T)
+
+  if (interactive()) message('* ', length(waves), ' audio files to process\n')
+
+  out <- lapply(1:length(waves), function(x) {
+    message('* Process ', basename(waves[x]), '\n')
+
+    ## read header of waves
+    audio <- tuneR::readWave(filename = waves[x], header = TRUE)
+    ## estimate length in seconds
+    sec <- audio$samples / audio$sample.rate
+    ## define breaks to write audio chunks (keep unique) if
+    ## last is identical to duration
+    breaks <- unique(c(seq(from = 0, to = sec, by = 600), sec))
+    ## get time from file name
+    head <- lubridate::make_datetime(
+      year = as.numeric(substr(basename(waves[x]), 1, 4)),
+      month = as.numeric(substr(basename(waves[x]), 5, 6)),
+      day = as.numeric(substr(basename(waves[x]), 7, 8)),
+      hour = as.numeric(substr(basename(waves[x]), 10, 11)),
+      min =  as.numeric(substr(basename(waves[x]), 12, 13)),
+      sec = as.numeric(substr(basename(waves[x]), 14, 15)))
+
+    ## define segments
+    df <- data.frame(
+      ctime = head,
+      from = breaks[1:(length(breaks) - 1)],
+      to = breaks[-1],
+      seconds = diff(breaks),
+      file = basename(waves[x]),
+      path = path)
+
+    ## adjust times for date_time label as header
+    if (nrow(df) > 1) {
+      for (i in 2:nrow(df)) {
+        df[i, "ctime"] <- df[i - 1, "ctime"] + df[i - 1, "seconds"]
+      }
+    }
+
+    ## create file names based on ctime of recordings
+    df[["new.name"]] <- format(df[["ctime"]], "%Y%m%d_%H%M%S")
+
+    ## extract segments
+    silent <- lapply(1:nrow(df), function(i) {
+      ## read audio
+      audio <- tuneR::readWave(filename = waves[x],
+                               from = df[i, "from"],
+                               to = df[i, "to"],
+                               units = "seconds")
+      suppressWarnings(tuneR::writeWave(audio, filename = file.path(path, df[i, "new.name"])))
+      rm(audio)
+      gc(full = T, verbose = F)
+    })
+
+
+  })
+}
+
 
 
