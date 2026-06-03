@@ -203,7 +203,7 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
     }
 
     ## create file names based on ctime of recordings
-    df[["new.name"]] <- format(df[["ctime"]], "%Y%m%d_%H%M%S")
+    df[["new.name"]] <- paste0(format(df[["ctime"]], "%Y%m%d_%H%M%S"),toupper(pattern))
 
     ## extract segments
     silent <- lapply(1:nrow(df), function(i) {
