@@ -203,6 +203,8 @@ birdNET_process_batch <- function(
     chunk_overlap_s = 0,
     sigmoid_sensitivity = 1.25) {
 
+  .Deprecated("run_birdnet")
+
   # upgrading to birdnetR 1.0 [2026-05-29] -------------------
   model <- match.arg(model)
 
@@ -376,3 +378,71 @@ birdNET_select <- function(
   return(Records)
 }
 
+#' Split execution of \link{birdNET_process} in sets of wave files
+#'
+#' @description
+#' Replaces \link{birdNET_process_batch}
+#'
+#' @inheritParams birdNET_process
+#' @param wave_files audio files to process
+#' @param skip.existing.results boolean
+#' @export
+#'
+run_birdnet <- function(
+    wave_files,
+    model = c('BirdNET v2.4', 'Perch v2'),
+    slist = NULL,
+    language = 'de',
+    batch_size = 3,
+    min_confidence = 0.7,
+    chunk_overlap_s = 0,
+    sigmoid_sensitivity = 1.25,
+    skip.existing.results = FALSE) {
+
+  model <- match.arg(model)
+
+  if (isTRUE(skip.existing.results)) {
+    ## build BirdNET.results files
+    results_files <- stringr::str_replace(
+      string = wave_files,
+      pattern = tools::file_ext(wave_files),
+      replacement = 'BirdNET.results.txt')
+    ## check if exist
+    indices <- sapply(results_files, file.exists)
+    ## filter wave files
+    wave_files <- wave_files[!indices]
+  }
+
+  # Create a progress bar
+  pb <- utils::txtProgressBar(min = 0, max = length(wave_files), style = 3)
+
+  cat(paste0('Start: ',as.character(strftime(Sys.time(),format = "%Y-%m-%d %H:%M:%S")),'\n\n'))
+  ## for each chunk ...
+  predictions <- lapply(1:length(wave_files), function(x) {
+    cat('Process recording', x, 'out of', length(wave_files), "\n")
+    utils::setTxtProgressBar(pb, x)
+    cat("\n")
+    birdNET_process(
+      model = model,
+      audio = wave_files[[x]],
+      language = 'de',
+      slist = slist,
+      batch_size = batch_size,
+      min_confidence = min_confidence,
+      chunk_overlap_s = chunk_overlap_s,
+      sigmoid_sensitivity = sigmoid_sensitivity)
+  })
+  ## export audacity labels
+  birdnet2audacity(
+    predictions = predictions,
+    wave_files = wave_files)
+  return(predictions)
+
+
+  # Close the progress bar
+  close(pb)
+  cat(paste0('Finish: ',as.character(strftime(Sys.time(),format = "%Y-%m-%d %H:%M:%S")),'\n\n'))
+  ## free up disk space
+  gc(verbose = FALSE)
+  return(x)
+}

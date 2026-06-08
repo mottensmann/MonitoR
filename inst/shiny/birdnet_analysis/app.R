@@ -308,13 +308,13 @@ server <- function(input, output, session) {
       add_log(paste("Found", length(wav_files), "file(s)"))
       add_log(paste("Starting birdnetR ..."))
 
-      MonitoR::birdNET_process_batch(
+      MonitoR::run_birdnet(
         wave_files          = wav_files,
         min_confidence      = input$min_conf,
         chunk_overlap_s     = input$overlap,
         sigmoid_sensitivity = input$sensitivity,
-        model               = input$model
-      )
+        model               = input$model,
+        skip.existing.results = TRUE)
       add_log("Classification completed")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
