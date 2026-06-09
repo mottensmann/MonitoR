@@ -160,7 +160,8 @@ ui <- page_navbar(
         actionButton("save_results", "Save BirdNET.xlsx",
                      icon = icon("floppy-disk"), class = "btn-success w-100 mb-3"),
         uiOutput("taxon_ui"),
-        input_switch("sync_filter", "Filter table by taxon", value = TRUE),
+        input_switch("sync_filter",    "Filter table by taxon",           value = TRUE),
+        input_switch("filter_quality", "Show 'Validate !' only",          value = FALSE),
         hr(),
         uiOutput("summary_boxes")
       ),
@@ -359,9 +360,13 @@ server <- function(input, output, session) {
     }
     df <- read_xlsx(fp)
     # Ensure editable columns exist
-    if (!"Verification" %in% names(df)) df$Verification <- NA
+    if (!"Verification" %in% names(df)) df$Verification <- NA_character_
     if (!"Comment"      %in% names(df)) df$Comment      <- NA_character_
     if (!"Correction"   %in% names(df)) df$Correction   <- NA_character_
+    # Ensure editable columns are always character (not logical when all-NA)
+    df$Verification <- as.character(df$Verification)
+    df$Comment      <- as.character(df$Comment)
+    df$Correction   <- as.character(df$Correction)
     results_data(df)
   })
 
@@ -386,7 +391,13 @@ server <- function(input, output, session) {
   output$taxon_ui <- renderUI({
     req(results_data())
     taxa <- sort(unique(results_data()$Taxon))
-    selectInput("taxon", "Focal taxon", choices = taxa, width = "100%")
+
+    # Aktuellen Wert merken, falls bereits gesetzt
+    current <- isolate(input$taxon)
+    selected <- if (!is.null(current) && current %in% taxa) current else taxa[1]
+
+    selectInput("taxon", "Focal taxon", choices = taxa,
+                selected = selected, width = "100%")
   })
 
   output$summary_boxes <- renderUI({
@@ -428,15 +439,21 @@ server <- function(input, output, session) {
 
   # Determine column indices that should NOT be editable (0-based for DT)
   # Editable: Verification, Comment, Correction — all others disabled
-  editable_cols <- c("Verification", "Comment", "Correction")
+  editable_cols    <- c("Verification", "Comment", "Correction")
+  display_col_order <- reactiveVal(NULL)   # tracks column order of the rendered table
 
-  # Create a reactive for filtered data that updates when taxon OR sync_filter changes
+  # Create a reactive for filtered data that updates when taxon OR sync_filter changes.
+  # .rid stores the row index in results_data() so we can map back after DT filtering.
   filtered_data <- reactive({
     req(results_data(), input$taxon)
     df <- results_data()
+    df$.rid <- seq_len(nrow(df))
 
     if (isTruthy(input$sync_filter) && !is.null(input$taxon)) {
       df <- df |> filter(Taxon == input$taxon)
+    }
+    if (isTruthy(input$filter_quality) && "Quality" %in% names(df)) {
+      df <- df |> filter(Quality == "Validate !")
     }
     df
   })
@@ -482,15 +499,19 @@ server <- function(input, output, session) {
       df <- df |> select(!!first_col, all_of(remaining_cols))
     }
 
+    # Cache display column order for use in the cell-edit observer
+    display_col_order(names(df))
+
     # Determine which column indices (0-based) are NOT editable
     col_names   <- names(df)
-    disable_idx <- which(!col_names %in% editable_cols) - 1L
-    verif_idx   <- which(col_names == "Verification") - 1L
+    disable_idx <- which(!col_names %in% c(editable_cols, ".rid")) - 1L
+    rid_idx     <- which(col_names == ".rid") - 1L  # 0-based, for JS and columnDefs
 
     DT::datatable(
       df,
-      filter  = "top",
-      escape  = FALSE,
+      filter   = "top",
+      escape   = FALSE,
+      rownames = FALSE,
       editable = list(
         target  = "cell",
         disable = list(columns = disable_idx)
@@ -498,13 +519,24 @@ server <- function(input, output, session) {
       options = list(
         pageLength = 15,
         scrollX    = TRUE,
-        stateSave  = TRUE
+        stateSave  = TRUE,
+        # Hide the .rid helper column from users
+        columnDefs = list(list(visible = FALSE, targets = rid_idx))
       ),
       callback = DT::JS(paste0("
-        var verifCol = ", verif_idx, ";
-        table.on('click', 'td', function() {
+        var ridCol   = ", rid_idx, ";
+        var verifCol = -1;
+        table.columns().every(function() {
+          var header = $(this.header()).text().trim();
+          if (header === 'Verification') { verifCol = this.index(); }
+        });
+
+        table.on('click', 'td', function(e) {
+          if (verifCol < 0) return;
           var colIdx = table.cell(this).index().column;
           if (colIdx !== verifCol) return;
+
+          e.stopImmediatePropagation();
 
           var cell   = table.cell(this);
           var curVal = cell.data() == null ? '' : String(cell.data());
@@ -523,12 +555,13 @@ server <- function(input, output, session) {
           sel.val(curVal).focus();
 
           sel.on('change', function() {
-            var newVal  = $(this).val();
-            var rowIdx  = cell.index().row;
+            var newVal = $(this).val();
+            // Read .rid from this row's data — works regardless of DT filtering/pagination
+            var rid    = table.cell(cell.index().row, ridCol).data();
             cell.data(newVal);
             Shiny.setInputValue(
-              'results_table_cell_edit',
-              {row: rowIdx + 1, col: verifCol + 1, value: newVal, _nonce: Math.random()},
+              'verification_cell_edit',
+              {row: rid, value: newVal, _nonce: Math.random()},
               {priority: 'event'}
             );
           });
@@ -543,24 +576,26 @@ server <- function(input, output, session) {
     )
   }, server = TRUE)
 
-  # Apply cell edits back to the master reactiveVal
+  # Observer for Verification (dropdown, custom JS event)
+  # info$row is .rid — the direct row index in results_data() — set by JS
+  observeEvent(input$verification_cell_edit, {
+    info <- input$verification_cell_edit
+    df   <- results_data()
+    df[info$row, "Verification"] <- as.character(info$value)
+    results_data(df)
+  })
+
+  # Observer for Comment / Correction (native DT inline editor)
+  # info$row from DT is 1-based within filtered_data(); use .rid to map to results_data()
   observeEvent(input$results_table_cell_edit, {
     info     <- input$results_table_cell_edit
     df       <- results_data()
-    row      <- info$row
-    col_name <- names(df)[info$col]
+    col_name <- display_col_order()[info$col]
 
-    if (!col_name %in% editable_cols) return()
+    if (is.null(col_name) || !col_name %in% c("Comment", "Correction")) return()
 
-    if (isTruthy(input$sync_filter) && !is.null(input$taxon)) {
-      master_rows <- which(df$Taxon == input$taxon)
-      master_row  <- master_rows[row]
-    } else {
-      master_row <- row
-    }
-
-    new_val <- DT::coerceValue(info$value, df[[col_name]][master_row])
-    df[master_row, col_name] <- new_val
+    master_row <- filtered_data()$.rid[info$row]
+    df[master_row, col_name] <- as.character(info$value)
     results_data(df)
   })
 
