@@ -1,10 +1,12 @@
 library(bslib)
 library(bsicons)
+library(htmltools)
 library(MonitoR)
 library(shiny)
 library(shinyFiles)
 library(tidyverse)
 library(readxl)
+library(writexl)
 
 # UI ---------------------------------------------------------------------------
 
@@ -19,40 +21,8 @@ ui <- page_navbar(
         $(document).on('click', '.file-link', function(e) {
           e.preventDefault();
           var filePath = $(this).data('file');
-          // Send message to server to open file
           Shiny.setInputValue('file_to_open', filePath, {priority: 'event'});
         });
-      });
-
-      // Add dropdown functionality for Verification column
-      $(document).on('dblclick', 'table tbody tr td', function() {
-        // Get the column header
-        var colIndex = $(this).index();
-        var headerCells = $('table thead th');
-        var colName = $(headerCells[colIndex]).text().trim();
-
-        // Only apply dropdown to Verification column
-        if (colName === 'Verification') {
-          var currentValue = $(this).text().trim();
-          var dropdown = '<select class=\"verification-select\" style=\"width: 100%; padding: 5px;\">' +
-            '<option value=\"\">-- Select --</option>' +
-            '<option value=\"T\" ' + (currentValue === 'T' ? 'selected' : '') + '>T</option>' +
-            '<option value=\"F\" ' + (currentValue === 'F' ? 'selected' : '') + '>F</option>' +
-            '<option value=\"?\" ' + (currentValue === '?' ? 'selected' : '') + '>?</option>' +
-            '</select>';
-          $(this).html(dropdown);
-          $(this).find('select').focus();
-
-          $(this).find('select').on('change', function() {
-            $(this).closest('td').text($(this).val());
-          });
-
-          $(this).find('select').on('blur', function() {
-            if (!$(this).val()) {
-              $(this).closest('td').text(currentValue);
-            }
-          });
-        }
       });
     "))
   ),
@@ -185,6 +155,8 @@ ui <- page_navbar(
         card_header("Controls"),
         actionButton("load_results", "Load BirdNET.xlsx",
                      icon = icon("folder-open"), class = "btn-primary w-100 mb-3"),
+        actionButton("save_results", "Save BirdNET.xlsx",
+                     icon = icon("floppy-disk"), class = "btn-success w-100 mb-3"),
         uiOutput("taxon_ui"),
         input_switch("sync_filter", "Filter table by taxon", value = TRUE),
         hr(),
@@ -229,40 +201,8 @@ server <- function(input, output, session) {
 
   ## Step 0: Pick folder ----
 
-  #' List availabe disks
-  #' @keywords internal
-  list_disks <- function() {
-    os <- Sys.info()[["sysname"]]
-
-    if (os == "Windows") {
-      # WMIC is deprecated on some systems, so try PowerShell if available
-      out <- try(system("wmic logicaldisk get name", intern = TRUE), silent = TRUE)
-
-      if (inherits(out, "try-error") || length(out) == 0) {
-        out <- system('powershell "Get-PSDrive -PSProvider FileSystem | Select-Object Name,Root"', intern = TRUE)
-      }
-
-      return(out)
-    }
-
-    if (os == "Darwin") {  # macOS
-      return(system("diskutil list", intern = TRUE))
-    }
-
-    if (os == "Linux") {
-      # lsblk gives the cleanest structured output
-      return(system("lsblk -f", intern = TRUE))
-    }
-
-    stop("Unsupported OS")
-  }
-
-  roots <- list_disks(); roots <- trimws(roots); names(roots) <- roots
-  roots <- roots[!(names(roots) == "Name")]
-  roots <- roots[!(names(roots) == "")]
-  roots <- c(wd = '.', home = path.expand("~"), roots)
-
-  selected_dir <- reactiveVal(roots[2])
+  roots <- c(Home = path.expand("~"), shinyFiles::getVolumes()())
+  selected_dir <- reactiveVal(roots[1])
 
   shinyDirChoose(input, "path", roots = roots, session = session)
   observeEvent(input$path, {
@@ -387,14 +327,38 @@ server <- function(input, output, session) {
   })
 
   # Results: load BirdNET.xlsx ----
-  results_data <- eventReactive(input$load_results, {
+  results_data <- reactiveVal(NULL)
+
+  observeEvent(input$load_results, {
     req(selected_dir())
     fp <- file.path(selected_dir(), "BirdNET.xlsx")
     if (!file.exists(fp)) {
       showNotification("BirdNET.xlsx not found. Run the workflow first.", type = "error")
-      return(NULL)
+      return()
     }
-    read_xlsx(fp)
+    df <- read_xlsx(fp)
+    # Ensure editable columns exist
+    if (!"Verification" %in% names(df)) df$Verification <- NA
+    if (!"Comment"      %in% names(df)) df$Comment      <- NA_character_
+    if (!"Correction"   %in% names(df)) df$Correction   <- NA_character_
+    results_data(df)
+  })
+
+  # Save edited data back to xlsx
+  observeEvent(input$save_results, {
+    req(results_data(), selected_dir())
+    fp <- file.path(selected_dir(), "BirdNET.xlsx")
+    tryCatch({
+      # Write Records sheet; preserve Meta sheet if present
+      meta_fp <- file.path(selected_dir(), "BirdNET.xlsx")
+      meta_df <- tryCatch(read_xlsx(meta_fp, sheet = "Meta"), error = function(e) NULL)
+      sheets <- list(Records = results_data())
+      if (!is.null(meta_df)) sheets$Meta <- meta_df
+      writexl::write_xlsx(sheets, fp)
+      showNotification("Saved successfully.", type = "message")
+    }, error = function(e) {
+      showNotification(paste("Save failed:", e$message), type = "error")
+    })
   })
 
   # Store the edited data
@@ -441,6 +405,10 @@ server <- function(input, output, session) {
     }
   })
 
+  # Determine column indices that should NOT be editable (0-based for DT)
+  # Editable: Verification, Comment, Correction — all others disabled
+  editable_cols <- c("Verification", "Comment", "Correction")
+
   output$results_table <- DT::renderDataTable({
     req(results_data(), input$taxon)
     df <- results_data()
@@ -453,23 +421,16 @@ server <- function(input, output, session) {
     file_col <- NULL
     potential_cols <- c("Path", "path", "File", "file", "Filepath", "filepath", "FilePath")
     for (col in potential_cols) {
-      if (col %in% names(df)) {
-        file_col <- col
-        break
-      }
+      if (col %in% names(df)) { file_col <- col; break }
     }
-
-    # If no standard column found, look for one that contains "/" or "\"
     if (is.null(file_col)) {
       for (col in names(df)) {
         if (is.character(df[[col]]) && any(grepl("[/\\\\]", df[[col]], na.rm = TRUE))) {
-          file_col <- col
-          break
+          file_col <- col; break
         }
       }
     }
 
-    # Add click handler to the file column
     if (!is.null(file_col) && nrow(df) > 0) {
       df <- df |>
         mutate(
@@ -483,28 +444,97 @@ server <- function(input, output, session) {
         )
     }
 
-    # Reorder columns: First column stays first, File as second, then rest (excluding T2)
+    # Column order: Taxon, File, rest (no T2)
     all_cols <- names(df)
     first_col <- all_cols[1]
-
-    # Determine column order
     if (!is.null(file_col)) {
-      # File as second column
       remaining_cols <- setdiff(all_cols, c(first_col, file_col, "T2"))
       df <- df |> select(!!first_col, !!file_col, all_of(remaining_cols))
     } else {
-      # Remove T2
       remaining_cols <- setdiff(all_cols, c(first_col, "T2"))
       df <- df |> select(!!first_col, all_of(remaining_cols))
     }
+
+    # Determine which column indices (0-based) are NOT editable
+    col_names   <- names(df)
+    disable_idx <- which(!col_names %in% editable_cols) - 1L
+    verif_idx   <- which(col_names == "Verification") - 1L
 
     DT::datatable(
       df,
       filter  = "top",
       escape  = FALSE,
-      options = list(pageLength = 15, scrollX = TRUE)
+      editable = list(
+        target  = "cell",
+        disable = list(columns = disable_idx)
+      ),
+      options = list(
+        pageLength = 15,
+        scrollX    = TRUE
+      ),
+      callback = DT::JS(paste0("
+        var verifCol = ", verif_idx, ";
+        table.on('click', 'td', function() {
+          var colIdx = table.cell(this).index().column;
+          if (colIdx !== verifCol) return;
+
+          var cell   = table.cell(this);
+          var curVal = cell.data() == null ? '' : String(cell.data());
+          var td     = $(this);
+          if (td.find('select.verif-dd').length) return;
+
+          td.html(
+            '<select class=\"verif-dd\" style=\"width:100%;padding:2px\">' +
+            '<option value=\"\">—</option>' +
+            '<option value=\"T\">T</option>' +
+            '<option value=\"F\">F</option>' +
+            '<option value=\"?\">?</option>' +
+            '</select>'
+          );
+          var sel = td.find('select.verif-dd');
+          sel.val(curVal).focus();
+
+          sel.on('change', function() {
+            var newVal  = $(this).val();
+            var rowIdx  = cell.index().row;
+            cell.data(newVal).draw(false);
+            Shiny.setInputValue(
+              'results_table_cell_edit',
+              {row: rowIdx + 1, col: verifCol + 1, value: newVal, _nonce: Math.random()},
+              {priority: 'event'}
+            );
+          });
+
+          sel.on('blur', function() {
+            setTimeout(function() {
+              if (td.find('select.verif-dd').length) { td.html(curVal); }
+            }, 200);
+          });
+        });
+      "))
     )
   }, server = TRUE)
+
+  # Apply cell edits back to the master reactiveVal
+  observeEvent(input$results_table_cell_edit, {
+    info     <- input$results_table_cell_edit
+    df       <- results_data()
+    row      <- info$row
+    col_name <- names(df)[info$col]
+
+    if (!col_name %in% editable_cols) return()
+
+    if (isTruthy(input$sync_filter) && !is.null(input$taxon)) {
+      master_rows <- which(df$Taxon == input$taxon)
+      master_row  <- master_rows[row]
+    } else {
+      master_row <- row
+    }
+
+    new_val <- DT::coerceValue(info$value, df[[col_name]][master_row])
+    df[master_row, col_name] <- new_val
+    results_data(df)
+  })
 
   output$activity_plot <- renderPlot({
     req(results_data(), input$taxon)

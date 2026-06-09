@@ -2,10 +2,29 @@
 % Please edit documentation in R/birdnet_app.R
 \name{birdnet_app}
 \alias{birdnet_app}
-\title{Launch shiny app}
+\title{Run the BirdNET Analysis Shiny App}
 \usage{
-birdnet_app()
+birdnet_app(display = c("window", "viewer", "external"), port = NULL, ...)
+}
+\arguments{
+\item{display}{Where to display the app. One of \code{"window"} (default),
+\code{"viewer"} (RStudio Viewer pane), or \code{"external"} (system
+browser).}
+
+\item{port}{Port to run the app on. Defaults to a random available port.}
+
+\item{...}{Additional arguments passed to \code{\link[shiny]{runApp}}.}
+}
+\value{
+Called for its side effect. Blocks the R session while the app runs.
 }
 \description{
-Launch shiny app
+Launches the BirdNET Analysis App bundled with the MonitoR package.
+}
+\examples{
+\dontrun{
+run_birdnet_app()                      # default: new window
+run_birdnet_app(display = "viewer")    # RStudio Viewer pane
+run_birdnet_app(display = "external")  # system browser
+}
 }
