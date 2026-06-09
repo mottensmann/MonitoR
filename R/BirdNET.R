@@ -399,6 +399,7 @@ run_birdnet <- function(
     sigmoid_sensitivity = 1.25,
     skip.existing.results = FALSE) {
 
+  x <- NULL
   model <- match.arg(model)
 
   if (isTRUE(skip.existing.results)) {
