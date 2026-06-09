@@ -12,7 +12,7 @@ test_that("birdNET_process", {
 })
 
 ## birdNET_process_batch -------------------------------------
-predictions <- birdNET_process_batch(
+predictions <- run_birdnet(
   wave_files = system.file("extdata", "20211220_064253.wav", package = "MonitoR"))
 predictions <- as.data.frame(predictions)
 test_that("birdNET_process_batch", {
