@@ -8,13 +8,10 @@ editor_options:
 ```{r, echo = FALSE}
 knitr::opts_chunk$set(
   fig.align = "center",
-  fig.width = 6,
-  fig.height = 6,
   dpi = 300,
   tidy = TRUE,
   collapse = TRUE,
-  comment = "#>",
-  fig.path = "inst/README-"
+  comment = "#>"
 )
 ```
 
@@ -24,12 +21,12 @@ knitr::opts_chunk$set(
 
 ___
 
-This package provides workflows in form of `R Markdown` templates for processing monitoring data, for now mostly focusing on the analysis of audio files obtained by deploying passive acoustic monitoring (PAM) devices. The package relies on [NocMigR2](github.com/mottensmann/NocMigR2). See details there.
+This package provides workflows in form of `R Markdown` templates for processing monitoring data, for now mostly focusing on the analysis of audio files obtained by deploying passive acoustic monitoring (PAM) devices. The package partly relies on [NocMigR2](github.com/mottensmann/NocMigR2). See details there.
     
 To install the package, use [devtools](https://github.com/r-lib/devtools):
 
 ```{r Install-NocMigR2, eval=FALSE}
-devtools::install_github("mottensmann/MonitoR", dependencies = TRUE)
+pak::pak("mottensmann/MonitoR", dependencies = TRUE)
 ```
 
 Load the package once installed:
@@ -38,24 +35,32 @@ Load the package once installed:
 library(MonitoR)
 ```
 
-## Templates
+## `Shiny-App`
+
+Toggling the entire processing pipeline (formatting, classificiation, inspecting results) using a shiny app. The classification is performed using [birdnetR](github.com/birdnet-team/birdnetR):
+
+```{r, eval=FALSE}
+birdnet_app()
+```
+
+```{r, fig.align='center', fig.width=12, fig.asp=16/9, echo=FALSE}
+knitr::include_graphics(path = "README_files/app1.png", dpi = 300)
+knitr::include_graphics(path = "README_files/app2.png", dpi = 300)
+knitr::include_graphics(path = "README_files/app3.png", dpi = 300)
+```
+
+
+## `RMarkdown Templates`
 
 `MonitoR` provides RMarkdown templates to set-up post-processing and validation of audio data classified using [BirdNET-Analyzer](https://github.com/kahst/BirdNET-Analyzer). Using `RStudio` these are accessible via `File -> New File -> RMarkdown`
 
-### birdnet
+### `birdnet`
 
 * (1) Preprocessing of audio data (renaming to datetime, removing unessary file prefixes)
 * (2) Extracting results obtained by using a AI-based classifier with [BirdNET-Analyzer](https://github.com/kahst/BirdNET-Analyzer)
 * (3) Archiving manually verified records to a xlsx-database
 
-### birdnetR
-
-* (1) Preprocessing of audio data (renaming to datetime, removing unessary file prefixes)
-* (2) Running [birdnetR](https://cran.r-project.org/package=birdnetR)
-* (3) Extracting results obtained by using a AI-based classifier with [birdnetR](https://cran.r-project.org/package=birdnetR)
-* (4) Archiving manually verified records to a xlsx-database
-
-### nestcamera
+### `nestcamera`
 
 * (1) Preprocessing of photos (renaming to datetime and resorting)
  
