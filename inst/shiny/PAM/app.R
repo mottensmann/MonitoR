@@ -4,6 +4,7 @@ library(htmltools)
 library(MonitoR)
 library(shiny)
 library(shinyFiles)
+library(shinyjs)
 library(tidyverse)
 library(readxl)
 library(writexl)
@@ -14,6 +15,7 @@ ui <- page_navbar(
   title = tags$span(bs_icon("binoculars-fill"), "BirdNET Analysis App"),
   theme = bs_theme(version = 5, bootswatch = "flatly"),
   fillable = FALSE,
+  shinyjs::useShinyjs(),
   # Add custom JavaScript for file link handling and Verification dropdown
   tags$head(
     tags$script(HTML("
@@ -202,12 +204,31 @@ server <- function(input, output, session) {
   ## Step 0: Pick folder ----
 
   roots <- c(Home = path.expand("~"), shinyFiles::getVolumes()())
-  selected_dir <- reactiveVal(roots[1])
+
+  # Load last selected directory from cache file
+  cache_file <- file.path(tempdir(), "monitor_last_dir.txt")
+  last_dir <- tryCatch({
+    if (file.exists(cache_file)) {
+      dir <- readLines(cache_file, n = 1, warn = FALSE)
+      if (dir.exists(dir)) dir else roots[1]
+    } else {
+      roots[1]
+    }
+  }, error = function(e) roots[1])
+
+  selected_dir <- reactiveVal(last_dir)
 
   shinyDirChoose(input, "path", roots = roots, session = session)
   observeEvent(input$path, {
     if (is.null(input$path) || any(is.na(input$path))) return()
-    selected_dir(parseDirPath(roots, input$path))
+    new_dir <- parseDirPath(roots, input$path)
+    selected_dir(new_dir)
+    # Save to cache file
+    tryCatch({
+      writeLines(new_dir, cache_file)
+    }, error = function(e) {
+      warning("Could not save directory to cache: ", e$message)
+    })
   })
 
   output$path_display <- renderText({
@@ -409,13 +430,19 @@ server <- function(input, output, session) {
   # Editable: Verification, Comment, Correction — all others disabled
   editable_cols <- c("Verification", "Comment", "Correction")
 
-  output$results_table <- DT::renderDataTable({
+  # Create a reactive for filtered data that updates when taxon OR sync_filter changes
+  filtered_data <- reactive({
     req(results_data(), input$taxon)
     df <- results_data()
 
     if (isTruthy(input$sync_filter) && !is.null(input$taxon)) {
       df <- df |> filter(Taxon == input$taxon)
     }
+    df
+  })
+
+  output$results_table <- DT::renderDataTable({
+    df <- filtered_data()
 
     # Find file column for clickable links
     file_col <- NULL
@@ -470,7 +497,8 @@ server <- function(input, output, session) {
       ),
       options = list(
         pageLength = 15,
-        scrollX    = TRUE
+        scrollX    = TRUE,
+        stateSave  = TRUE
       ),
       callback = DT::JS(paste0("
         var verifCol = ", verif_idx, ";
@@ -497,7 +525,7 @@ server <- function(input, output, session) {
           sel.on('change', function() {
             var newVal  = $(this).val();
             var rowIdx  = cell.index().row;
-            cell.data(newVal).draw(false);
+            cell.data(newVal);
             Shiny.setInputValue(
               'results_table_cell_edit',
               {row: rowIdx + 1, col: verifCol + 1, value: newVal, _nonce: Math.random()},
@@ -539,7 +567,7 @@ server <- function(input, output, session) {
   output$activity_plot <- renderPlot({
     req(results_data(), input$taxon)
     tryCatch(
-      MonitoR::birdNET_graph(path = selected_dir(), taxon = input$taxon),
+      MonitoR::birdNET_graph(path = selected_dir(), taxon = isolate(input$taxon)),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")
