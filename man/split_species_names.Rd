@@ -4,9 +4,14 @@
 \alias{split_species_names}
 \title{splits species names}
 \usage{
-split_species_names(x)
+split_species_names(x, model = "BirdNET v2.4")
+}
+\arguments{
+\item{x}{string}
+
+\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
 }
 \description{
-splits species names
+Split BirdNET species name in scientific and common name. If model perch v2 is used, try to lookup common names from BirdNET species list.
 }
 \keyword{internal}

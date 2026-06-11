@@ -65,15 +65,22 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
 #'
 #' @param predictions list of data frames returned by birdnetR
 #' @param wave_files path to wave_files in order of data frames
+#' @inheritParams birdNET_process
 #' @importFrom readr write_delim
 #' @importFrom stringr str_replace
 #' @importFrom tools file_ext
 #' @importFrom stats na.omit
-#' @importFrom methods is
-#'
 #' @export
 #'
-birdnet2audacity <- function(predictions, wave_files) {
+birdnet2audacity <- function(predictions, wave_files, model = c('BirdNET v2.4', 'Perch v2')) {
+
+  ## set output names depending on model
+  model <- match.arg(model)
+  if (model == 'BirdNET v2.4') {
+    my_replacement = "BirdNET.results.txt"
+  } else if (model == 'Perch v2') {
+    my_replacement = "Perch.results.txt"
+  }
 
   ## if predictions is a list ...
   if (methods::is(predictions, 'list')) {
@@ -83,7 +90,7 @@ birdnet2audacity <- function(predictions, wave_files) {
       ## check if there is at least one prediction or skip
       if (nrow(df) > 1) {
         ## tweak label
-        df <- cbind(df, split_species_names(df[["species_name"]]))
+        df <- cbind(df, split_species_names(df[["species_name"]], model = model))
         df <- data.frame(start = df$start,
                          end = df$end,
                          name = paste0(df$scientific_name, ", ", df$common_name),
@@ -95,7 +102,7 @@ birdnet2audacity <- function(predictions, wave_files) {
           x = df,
           file = stringr::str_replace(string = wave_files[i],
                                       pattern = tools::file_ext(wave_files[i]) ,
-                                      replacement = "BirdNET.results.txt"),
+                                      replacement = my_replacement),
           col_names = F)
 
       }
@@ -103,7 +110,7 @@ birdnet2audacity <- function(predictions, wave_files) {
   } else if (methods::is(predictions, 'data.frame')) {
     if (nrow(predictions) > 1) {
 
-      df <- cbind(predictions, split_species_names(predictions[["species_name"]]))
+      df <- cbind(predictions, split_species_names(predictions[["species_name"]], model = model))
 
       ## tweak label
       df <- data.frame(
@@ -119,7 +126,7 @@ birdnet2audacity <- function(predictions, wave_files) {
         x = df,
         file = stringr::str_replace(string = wave_files,
                                     pattern = tools::file_ext(wave_files) ,
-                                    replacement = "BirdNET.results.txt"),
+                                    replacement = my_replacement),
         col_names = F)
 
     }
@@ -160,7 +167,7 @@ birdNET_process <- function(
   if (model == 'BirdNET v2.4') {
     model = birdnetR::load_birdnet(type = 'acoustic', version = '2.4', language = language)
   } else if (model == 'Perch v2') {
-    stop('Perch v2 not yet working')
+    #warning('Perch v2 perhaps not yet working')
     model = birdnetR::load_perch()
     # └─birdnetR::load_perch()
     # 2.   └─py_birdnet$load_perch_v2("CPU")
@@ -182,74 +189,6 @@ birdNET_process <- function(
   ## return results ------------------------------------------
   return(as.data.frame(results))
 }
-
-#' Split execution of \link{birdNET_process} in sets of wave files
-#'
-#' @inheritParams birdNET_process
-#' @param wave_files audio files to process
-#' @param n number of audio files to process in a single run
-#' @param restart optional. restart iteration from here
-#' @export
-#'
-birdNET_process_batch <- function(
-    wave_files,
-    model = c('BirdNET v2.4', 'Perch v2'),
-    n = 12,
-    slist = NULL,
-    language = 'de',
-    batch_size = 3,
-    restart = NULL,
-    min_confidence = 0.7,
-    chunk_overlap_s = 0,
-    sigmoid_sensitivity = 1.25) {
-
-  .Deprecated("run_birdnet")
-
-  # upgrading to birdnetR 1.0 [2026-05-29] -------------------
-  model <- match.arg(model)
-
-  if (!is.null(restart)) {
-    wave_files <- wave_files[restart:length(wave_files)]
-  }
-
-  ## establish number of iterations
-  chunks <- unique(c(seq(0, length(wave_files), n), length(wave_files)))
-
-  # Create a progress bar
-  pb <- utils::txtProgressBar(min = 0, max = length(wave_files), style = 3)
-
-  cat(paste0('Start: ',as.character(strftime(Sys.time(),format = "%Y-%m-%d %H:%M:%S")),'\n\n'))
-  ## for each chunk ...
-  x <- lapply(1:(length(chunks) - 1), function(chunk) {
-    predictions <- lapply((chunks[chunk] + 1):chunks[chunk + 1], function(x) {
-      cat('Process recording', x, 'out of', max(chunks), "\n")
-      utils::setTxtProgressBar(pb, x)
-      cat("\n")
-      birdNET_process(
-        model = model,
-        audio = wave_files[[x]],
-        language = 'de',
-        slist = slist,
-        batch_size = batch_size,
-        min_confidence = min_confidence,
-        chunk_overlap_s = chunk_overlap_s,
-        sigmoid_sensitivity = sigmoid_sensitivity)
-    })
-    ## export audacity labels
-    birdnet2audacity(
-      predictions = predictions,
-      wave_files = wave_files[chunks[chunk]:chunks[chunk + 1]])
-    return(predictions)
-  })
-
-  # Close the progress bar
-  close(pb)
-  cat(paste0('Finish: ',as.character(strftime(Sys.time(),format = "%Y-%m-%d %H:%M:%S")),'\n\n'))
-  ## free up disk space
-  gc(verbose = FALSE)
-  return(x)
-}
-
 
 #' Read and subset species list from models
 #'
@@ -402,7 +341,7 @@ run_birdnet <- function(
   x <- NULL
   model <- match.arg(model)
 
-  if (isTRUE(skip.existing.results)) {
+  if (model == 'BirdNET v2.4' & isTRUE(skip.existing.results)) {
     ## build BirdNET.results files
     results_files <- stringr::str_replace(
       string = wave_files,
@@ -412,15 +351,38 @@ run_birdnet <- function(
     indices <- sapply(results_files, file.exists)
     ## filter wave files
     wave_files <- wave_files[!indices]
+  } else if (model == 'Perch v2' & isTRUE(skip.existing.results)) {
+    ## build Perch.results files
+    results_files <- stringr::str_replace(
+      string = wave_files,
+      pattern = tools::file_ext(wave_files),
+      replacement = 'Perch.results.txt')
+    ## check if exist
+    indices <- sapply(results_files, file.exists)
+    ## filter wave files
+    wave_files <- wave_files[!indices]
   }
 
   # Create a progress bar
   pb <- utils::txtProgressBar(min = 0, max = length(wave_files), style = 3)
 
-  cat(paste0('Start: ',as.character(strftime(Sys.time(),format = "%Y-%m-%d %H:%M:%S")),'\n\n'))
+  cat(paste0(
+    "\n  {o,o}",
+    "\n  |)  )",
+    "\n  -'-'-",
+    "\nStart: ", strftime(Sys.time(), format = "%Y-%m-%d %H:%M:%S"),
+    " Model: ", model, "\n\n"
+  ))
+
   ## for each chunk ...
   predictions <- lapply(1:length(wave_files), function(x) {
-    cat('Process recording', x, 'out of', length(wave_files), "\n")
+    cat("\014")
+    cat(paste0(
+      "\n  {o,o}",
+      "\n  |)  )",
+      "\n  -'-'-",
+      '\nProcess ', x, ' out of ', length(wave_files), ' [', strftime(Sys.time(), format = "%Y-%m-%d %H:%M:%S"), ']', "\n"
+    ))
     utils::setTxtProgressBar(pb, x)
     cat("\n")
     birdNET_process(
@@ -436,7 +398,8 @@ run_birdnet <- function(
   ## export audacity labels
   birdnet2audacity(
     predictions = predictions,
-    wave_files = wave_files)
+    wave_files = wave_files,
+    model = model)
   return(predictions)
 
 

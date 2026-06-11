@@ -142,12 +142,27 @@ read_audacity <- function(path, pattern = c('BirdNET.results.txt', 'BirdNET.labe
 }
 
 #' splits species names
+#'
+#' @description
+#' Split BirdNET species name in scientific and common name. If model perch v2 is used, try to lookup common names from BirdNET species list.
+#'
+#' @param x string
+#' @inheritParams birdNET_process
 #' @keywords internal
-split_species_names <- function(x) {
-  parts <- strsplit(x, "_")
-  df <- as.data.frame(do.call(rbind, parts), stringsAsFactors = FALSE)
-  names(df) <- c("scientific_name", "common_name")
-  df
+split_species_names <- function(x, model = 'BirdNET v2.4') {
+  if (model == 'BirdNET v2.4') {
+    parts <- strsplit(x, "_")
+    df <- as.data.frame(do.call(rbind, parts), stringsAsFactors = FALSE)
+    names(df) <- c("scientific_name", "common_name")
+  } else if (model == 'Perch v2') {
+    slist <- read_birdnet_slist(.cached = T)[,c("name_scientific", "name_de")]
+    names(slist) <- c("scientific_name", "common_name")
+    df <- dplyr::left_join(
+      data.frame(scientific_name = x),
+      slist,
+      by = 'scientific_name')
+  }
+  return(df)
 }
 
 #' Split wave files in 10 minute segments

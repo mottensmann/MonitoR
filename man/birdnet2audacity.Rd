@@ -4,12 +4,18 @@
 \alias{birdnet2audacity}
 \title{Export birdnetR predictions to audacity label file}
 \usage{
-birdnet2audacity(predictions, wave_files)
+birdnet2audacity(
+  predictions,
+  wave_files,
+  model = c("BirdNET v2.4", "Perch v2")
+)
 }
 \arguments{
 \item{predictions}{list of data frames returned by birdnetR}
 
 \item{wave_files}{path to wave_files in order of data frames}
+
+\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
 }
 \description{
 Creates a text file with labels for use in Audacity matching --rtype 'audacity' when using [BirdNET-Analyzer](https://github.com/birdnet-team/BirdNET-Analyzer)
