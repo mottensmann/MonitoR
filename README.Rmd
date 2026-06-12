@@ -40,7 +40,7 @@ library(MonitoR)
 Toggling the entire processing pipeline (formatting, classificiation, inspecting results) using a shiny app. The classification is performed using [birdnetR](github.com/birdnet-team/birdnetR):
 
 ```{r, eval=FALSE}
-birdnet_app()
+birdnet_app(display = "external")
 ```
 
 ```{r, fig.align='center', fig.width=12, fig.asp=16/9, echo=FALSE}
