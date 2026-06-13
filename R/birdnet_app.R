@@ -9,6 +9,7 @@
 #' @param ... Additional arguments passed to \code{\link[shiny]{runApp}}.
 #'
 #' @return Called for its side effect. Blocks the R session while the app runs.
+#' @importFrom rstudioapi isAvailable viewer
 #' @export
 #'
 #' @examples
@@ -18,7 +19,7 @@
 #' run_birdnet_app(display = "external")  # system browser
 #' }
 birdnet_app <- function(display = c("window", "viewer", "external"),
-                            port = NULL, ...) {
+                        port = NULL, ...) {
 
   display <- match.arg(display)
 
