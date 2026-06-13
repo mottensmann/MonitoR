@@ -73,21 +73,22 @@ birdnet2audacity <- function(predictions, wave_files, model = c('BirdNET v2.4', 
   }
 }
 
-#' Execute \link[=predict.birdnet_model_acoustic]{birdnet.predict()} with custom settings
+#' Runs \code{birdnetR::predict.birdnet_model_acoustic} with custom settings
 #'
 #' @description
-#' Runs \link[=predict.birdnet_model_acoustic]{birdnet.predict()} on audio files
+#' Runs \code{birdnetR::predict.birdnet_model_acoustic} with custom settings on audio file.
 #'
-#' @param audio audio file
-#' @param model one of c('BirdNET v2.4', 'Perch v2')
-#' @param slist see \code{species_list} in \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
-#' @param language see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
-#' @param batch_size see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
-#' @param min_confidence see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
-#' @param chunk_overlap_s see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
-#' @param sigmoid_sensitivity see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
-#' @return see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}
+#' @param audio Audio file to process.
+#' @param model One of \code{c('BirdNET v2.4', 'Perch v2')}
+#' @param slist Optional. Character vector or list of species names to filter the predictions
+#' @param language Character. defaults to \code{'de'}
+#' @param batch_size Optional. An integer specifying the number of audio segments evaluated per inference call.
+#' @param min_confidence Numeric value to set the minimum confidence threshold for predictions.
+#' @param chunk_overlap_s Numeric value to set the overlap between consecutive segments.
+#' @param sigmoid_sensitivity Numeric value that adjusts the sensitivity of the sigmoid function. Must be in the interval [0.5, 1.5]. defaults to \code{1.25}
+#' @return An S3 object of class \code{birdnet_prediction_acoustic} and \code{birdnet_prediction} containing the prediction results
 #' @importFrom birdnetR load_birdnet
+#' @seealso \code{\link[birdnetR:predict.birdnet_model_acoustic]{birdnet.predict()}}
 #' @export
 #'
 birdNET_process <- function(
@@ -219,6 +220,7 @@ write_birdnet_slist <- function(
 #' @param slist path to custom species list
 #' @param model one of 'BirdNET v2.4' or 'Perch v2'
 #' @importFrom dplyr filter
+#' @importFrom NocMigR2 reformat_xlsx
 #' @export
 #'
 birdNET_select <- function(

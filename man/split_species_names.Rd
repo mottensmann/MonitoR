@@ -9,7 +9,7 @@ split_species_names(x, model = "BirdNET v2.4")
 \arguments{
 \item{x}{string}
 
-\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
+\item{model}{One of \code{c('BirdNET v2.4', 'Perch v2')}}
 }
 \description{
 Split BirdNET species name in scientific and common name. If model perch v2 is used, try to lookup common names from BirdNET species list.

@@ -7,7 +7,7 @@
 read_birdnet_slist(model = c("BirdNET v2.4"), language = "de", .cached = F)
 }
 \arguments{
-\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
+\item{model}{One of \code{c('BirdNET v2.4', 'Perch v2')}}
 
 \item{language}{language. defaults to 'de'}
 

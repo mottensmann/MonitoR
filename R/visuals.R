@@ -26,7 +26,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
   # Silence R CMD CHECK notes for NSE column names
   Taxon <- T1 <- hh <- dd <- Verification <- n <- NULL
 
-  # ── 1. Load & prepare data ───────────────────────────────────────────────────
+  ## 1. Load & prepare data
   df <- readxl::read_xlsx(file.path(path, "BirdNET.xlsx")) |>
     dplyr::filter(Taxon == taxon) |>
     dplyr::mutate(
@@ -40,7 +40,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
       )
     )
 
-  # ── 2. Error rate subtitle ────────────────────────────────────────────────────
+  ## 2. Error rate subtitle
   verified_df <- dplyr::filter(df, Verification %in% c("Verified", "Rejected"))
   n_sample    <- nrow(verified_df)
   n_rejected  <- sum(verified_df$Verification == "Rejected")
@@ -55,7 +55,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
     subtitle_text <- "Reliability: no verified detections"
   }
 
-  # ── 3. Shared fill scale ──────────────────────────────────────────────────────
+  ## 3. Shared fill scale
   fill_scale <- scale_fill_manual(
     values = c(
       Verified      = "#4daf4a",
@@ -66,7 +66,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
     guide = guide_legend(title = "Verification")
   )
 
-  # ── 4. Plot A – events per day ───────────────────────────────────────────────
+  ## 4. Plot A – events per day
   plot_day <- df |>
     dplyr::count(dd, Verification) |>
     tidyr::complete(dd, Verification, fill = list(n = 0)) |>
@@ -83,7 +83,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
     theme(panel.grid    = element_blank(),
           axis.text.x   = element_text(angle = 45, hjust = 1))
 
-  # ── 5. Plot B – events per hour ──────────────────────────────────────────────
+  ## 5. Plot B – events per hour
   plot_hour <- df |>
     dplyr::count(hh, Verification) |>
     tidyr::complete(hh = 0:23, Verification, fill = list(n = 0)) |>
@@ -100,7 +100,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
     theme(panel.grid    = element_blank())
 
 
-  # ── 6. Combine with patchwork ─────────────────────────────────────────────────
+  ## 6. Combine with patchwork
   combined <- (plot_day + plot_hour) +
     patchwork::plot_layout(guides = "collect") +
     patchwork::plot_annotation(
@@ -108,7 +108,7 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
       subtitle = subtitle_text,
       caption  = paste0(
         nrow(df), " event(s)  (", model, ")\n",
-        min(df$T1), " – ", max(df$T1)),
+        min(df$T1), " - ", max(df$T1)),
       theme = theme(plot.title    = element_text(size = 18, face = "bold"),
                     plot.subtitle = element_text(size = 14, face = "italic"),
                     plot.caption  = element_text(size = 12)))

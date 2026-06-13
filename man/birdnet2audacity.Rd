@@ -15,7 +15,7 @@ birdnet2audacity(
 
 \item{wave_files}{path to wave_files in order of data frames}
 
-\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
+\item{model}{One of \code{c('BirdNET v2.4', 'Perch v2')}}
 }
 \description{
 Creates a text file with labels for use in Audacity matching --rtype 'audacity' when using [BirdNET-Analyzer](https://github.com/birdnet-team/BirdNET-Analyzer)

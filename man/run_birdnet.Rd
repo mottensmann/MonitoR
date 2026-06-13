@@ -19,19 +19,19 @@ run_birdnet(
 \arguments{
 \item{wave_files}{audio files to process}
 
-\item{model}{one of c('BirdNET v2.4', 'Perch v2')}
+\item{model}{One of \code{c('BirdNET v2.4', 'Perch v2')}}
 
-\item{slist}{see \code{species_list} in \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
+\item{slist}{Optional. Character vector or list of species names to filter the predictions}
 
-\item{language}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
+\item{language}{Character. defaults to \code{'de'}}
 
-\item{batch_size}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
+\item{batch_size}{Optional. An integer specifying the number of audio segments evaluated per inference call.}
 
-\item{min_confidence}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
+\item{min_confidence}{Numeric value to set the minimum confidence threshold for predictions.}
 
-\item{chunk_overlap_s}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
+\item{chunk_overlap_s}{Numeric value to set the overlap between consecutive segments.}
 
-\item{sigmoid_sensitivity}{see \link[=predict.birdnet_model_acoustic]{birdnet.predict()}}
+\item{sigmoid_sensitivity}{Numeric value that adjusts the sensitivity of the sigmoid function. Must be in the interval [0.5, 1.5]. defaults to \code{1.25}}
 
 \item{skip.existing.results}{boolean}
 }
