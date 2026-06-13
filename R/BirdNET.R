@@ -293,6 +293,7 @@ run_birdnet <- function(
     indices <- sapply(results_files, file.exists)
     ## filter wave files
     wave_files <- wave_files[!indices]
+    if (length(wave_files) == 0) stop('All recordings analysed. Set skip.existing.results = FALSE to rerun')
   } else if (model == 'Perch v2' & isTRUE(skip.existing.results)) {
     ## build Perch.results files
     results_files <- stringr::str_replace(
@@ -303,6 +304,7 @@ run_birdnet <- function(
     indices <- sapply(results_files, file.exists)
     ## filter wave files
     wave_files <- wave_files[!indices]
+    if (length(wave_files) == 0) stop('All recordings analysed. Set skip.existing.results = FALSE to rerun')
   }
 
   # Create a progress bar
@@ -323,7 +325,7 @@ run_birdnet <- function(
       "\n  {o,o}",
       "\n  |)  )",
       "\n  -'-'-",
-      '\nProcess ', x, ' out of ', length(wave_files), ' [', strftime(Sys.time(), format = "%Y-%m-%d %H:%M:%S"), ']', "\n"
+      '\nProcess ', x, ' out of ', length(wave_files), ' (', model, ')', ' [', strftime(Sys.time(), format = "%Y-%m-%d %H:%M:%S"), ']', "\n"
     ))
     utils::setTxtProgressBar(pb, x)
     cat("\n")
@@ -338,12 +340,10 @@ run_birdnet <- function(
       sigmoid_sensitivity = sigmoid_sensitivity)
   })
   ## export audacity labels
-  birdnet2audacity(
-    predictions = predictions,
-    wave_files = wave_files,
-    model = model)
+  birdnet2audacity(predictions = predictions,
+                   wave_files = wave_files,
+                   model = model)
   return(predictions)
-
 
   # Close the progress bar
   close(pb)
