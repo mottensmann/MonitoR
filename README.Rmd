@@ -37,7 +37,7 @@ library(MonitoR)
 
 ## `Shiny-App`
 
-Toggling the entire processing pipeline (formatting, classificiation, inspecting results) using a shiny app. The classification is performed using [birdnetR](github.com/birdnet-team/birdnetR):
+Toggling the entire processing pipeline (formatting, classification, inspecting results) using a shiny app. The classification is performed using [birdnetR](github.com/birdnet-team/birdnetR):
 
 ```{r, eval=FALSE}
 birdnet_app(display = "external")
@@ -56,7 +56,7 @@ knitr::include_graphics(path = "README_files/app3.png", dpi = 300)
 
 ### `birdnet`
 
-* (1) Preprocessing of audio data (renaming to datetime, removing unessary file prefixes)
+* (1) Preprocessing of audio data (renaming to datetime, removing unnecessary file prefixes)
 * (2) Extracting results obtained by using a AI-based classifier with [BirdNET-Analyzer](https://github.com/kahst/BirdNET-Analyzer)
 * (3) Archiving manually verified records to a xlsx-database
 
