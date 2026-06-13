@@ -166,6 +166,10 @@ split_species_names <- function(x, model = 'BirdNET v2.4') {
 }
 
 #' Split wave files in 10 minute segments
+#' @description
+#' Split long wave files in segments and overwrite input files. For safety reasons,
+#' files are first saved to a directory \code{temp} before replacing the input.
+#'
 #'
 #' @param path path
 #' @param pattern file format, .wav or .mp3
@@ -181,6 +185,10 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
                       full.names = T)
 
   if (interactive()) message('* ', length(waves), ' audio files to process\n')
+
+  ## create TempDir
+  TempDir <- tempdir()
+  dir.create(TempDir, showWarnings = T)
 
   out <- lapply(1:length(waves), function(x) {
     message('* Process ', basename(waves[x]), '\n')
@@ -208,7 +216,8 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
       to = breaks[-1],
       seconds = diff(breaks),
       file = basename(waves[x]),
-      path = path)
+      path = path,
+      TempDir = TempDir)
 
     ## adjust times for date_time label as header
     if (nrow(df) > 1) {
@@ -227,14 +236,47 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
                                from = df[i, "from"],
                                to = df[i, "to"],
                                units = "seconds")
-      suppressWarnings(tuneR::writeWave(audio, filename = file.path(path, df[i, "new.name"])))
+      #suppressWarnings(tuneR::writeWave(audio, filename = file.path(path, df[i, "new.name"])))
+      suppressWarnings(tuneR::writeWave(audio, filename = file.path(TempDir, df[i, "new.name"])))
       rm(audio)
       gc(full = T, verbose = F)
     })
-
-
+    ## copy from TempDir back to path
+    file.copy(from = file.path(df[["TempDir"]], df[["new.name"]]),
+              to = file.path(df[["path"]], df[["new.name"]]),
+              overwrite = T)
   })
+  unlink(TempDir, recursive = T)
 }
 
+#' Interactively check, load and optionally install missing R packages
+#'
+#' @param pkgs Character vector of package names to check/install.
+#' @export
+#'
+.check_pkgs <- function(pkgs) {
 
+  pkgs_missing <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]
+  pkgs_available <- pkgs[sapply(pkgs, requireNamespace, quietly = TRUE)]
+
+  if (length(pkgs_missing) > 0) {
+
+    message("\nThe following packages are not installed:")
+    message(paste0("  - ", pkgs_missing, collapse = "\n"))
+    answer <- readline("\nInstall now? [y/n]: ")
+
+    if (!tolower(trimws(answer)) %in% c("y", "yes")) {
+      message("Installation skipped.")
+
+    } else if (tolower(trimws(answer)) %in% c("y", "yes")) {
+      results <- lapply(pkgs_missing, function(pkg) {
+        message("\nInstalling: ", pkg)
+        utils::install.packages(pkg, quiet = TRUE)
+      })
+      pkgs_available <- pkgs[sapply(pkgs, requireNamespace, quietly = TRUE)]
+
+    }
+  }
+  invisible(lapply(pkgs_available, library, character.only = TRUE))
+}
 

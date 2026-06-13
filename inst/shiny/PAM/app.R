@@ -1,22 +1,26 @@
-library(bslib)
-library(bsicons)
-library(htmltools)
-library(MonitoR)
-library(shiny)
-library(shinyFiles)
-library(shinyjs)
-library(tidyverse)
-library(readxl)
-library(writexl)
+### required libraries ---------------------------------------
+pkgs <- c(
+  "bsicons",
+  "bslib",
+  "DT",
+  "htmltools",
+  "shiny",
+  "shinyFiles",
+  "shinyjs",
+  "tidyverse",
+  "readxl",
+  "thematic",
+  "writexl")
 
-# UI ---------------------------------------------------------------------------
+MonitoR::.check_pkgs(pkgs = pkgs)
 
+## UI --------------------------------------------------------
 ui <- page_navbar(
-  title = tags$span(bs_icon("binoculars-fill"), "BirdNET Analysis App"),
+  title = tags$span(bsicons::bs_icon("binoculars-fill"), "BirdNET Analysis App"),
   theme = bs_theme(version = 5, bootswatch = "flatly"),
   fillable = FALSE,
   shinyjs::useShinyjs(),
-  # Add custom JavaScript for file link handling and Verification dropdown
+  ## JavaScript for file link handling and Verification dropdown
   tags$head(
     tags$script(HTML("
       Shiny.addCustomMessageHandler('add_file_click_handlers', function(message) {
@@ -29,10 +33,10 @@ ui <- page_navbar(
     "))
   ),
 
-  # ── Tab 1: Configuration ───────────────────────────────────────────────────
+  ### Tab 1: Configuration -----------------------------------
   nav_panel(
     title = "Settings",
-    icon  = bs_icon("gear"),
+    icon  = bsicons::bs_icon("gear"),
 
     layout_columns(
       col_widths = c(6, 6),
@@ -83,10 +87,10 @@ ui <- page_navbar(
     )
   ),
 
-  ## Tab 2: Processing ----
+  ### Tab 2: Processing --------------------------------------
   nav_panel(
     title = "Processing",
-    icon  = bs_icon("play-btn"),
+    icon  = bsicons::bs_icon("play-btn"),
 
     layout_columns(
       col_widths = c(3, 9),
@@ -99,14 +103,16 @@ ui <- page_navbar(
 
           accordion_panel(
             title = "1 · Preprocessing",
-            icon  = bs_icon("folder2-open"),
+            icon  = bsicons::bs_icon("folder2-open"),
             actionButton("run_rename", "Rename files to datetime",
+                         class = "btn-outline-success w-100 mb-1"),
+            actionButton("run_split_waves", "Split waves",
                          class = "btn-outline-success w-100 mb-1")
           ),
 
           accordion_panel(
             title = "2 · AI Classification",
-            icon  = bs_icon("cpu"),
+            icon  = bsicons::bs_icon("cpu"),
             #hr(class = "my-2"),
             actionButton("run_birdnet_r", "Run BirdNET (birdnetR)",
                          class = "btn-outline-success w-100")
@@ -114,7 +120,7 @@ ui <- page_navbar(
 
           accordion_panel(
             title = "3 · Postprocessing",
-            icon  = bs_icon("file-earmark-spreadsheet"),
+            icon  = bsicons::bs_icon("file-earmark-spreadsheet"),
             actionButton("run_format",  "Format results",
                          class = "btn-outline-success w-100 mb-1"),
             actionButton("run_filter",  "Filter by species (ornitho_de)",
@@ -125,7 +131,7 @@ ui <- page_navbar(
 
           accordion_panel(
             title = "4 · Archiving data",
-            icon  = bs_icon("archive"),
+            icon  = bsicons::bs_icon("archive"),
             actionButton("run_archive", "Archive results",
                          class = "btn-outline-danger w-100")
           )
@@ -145,10 +151,10 @@ ui <- page_navbar(
     )
   ),
 
-  # ── Tab 3: Results ─────────────────────────────────────────────────────────
+  ### Tab 3: Results -----------------------------------------
   nav_panel(
     title = "Results",
-    icon  = bs_icon("database"),
+    icon  = bsicons::bs_icon("database"),
 
     layout_columns(
       col_widths = c(3, 9),
@@ -182,15 +188,16 @@ ui <- page_navbar(
 )
 
 
-# Server -----------------------------------------------------------------------
-
+## Server ----------------------------------------------------
 server <- function(input, output, session) {
+
+  ### App init -----------------------------------------------
   thematic::thematic_shiny()
 
   # Add JavaScript handler for file link clicks
   session$sendCustomMessage(type = "add_file_click_handlers", message = list())
 
-  ## Log helpers ----
+  #### Log helpers -------------------------------------------
   log_rv <- reactiveVal(character(0))
 
   add_log <- function(msg, level = "INFO") {
@@ -202,7 +209,7 @@ server <- function(input, output, session) {
   output$log <- renderText(paste(log_rv(), collapse = "\n"))
   observeEvent(input$clear_log, log_rv(character(0)))
 
-  ## Step 0: Pick folder ----
+  ### Step 0: Pick folder ------------------------------------
 
   roots <- c(Home = path.expand("~"), shinyFiles::getVolumes()())
 
@@ -242,7 +249,7 @@ server <- function(input, output, session) {
   })
 
 
-  ## Step 1: Preprocessing ----
+  ### Step 1: Preprocessing ----------------------------------
   observeEvent(input$run_rename, {
     req(selected_dir())
     add_log(paste("Renaming files in:", selected_dir()))
@@ -252,7 +259,16 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  ## Step 2: BirdNET-Analyzer ----
+  observeEvent(input$run_split_waves, {
+    req(selected_dir())
+    add_log(paste("Splitting waves in:", selected_dir()))
+    tryCatch({
+      MonitoR::split_waves(path = selected_dir())
+      add_log("Waves split successfully")
+    }, error = function(e) add_log(e$message, "ERROR"))
+  })
+
+  ### Step 2: birdnet ----------------------------------------
   observeEvent(input$run_birdnet_r, {
     req(selected_dir())
     add_log("Scanning for wav files ...")
@@ -281,7 +297,7 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  ## Step 3.1.1: Format BirdNET results ----
+  #### Step 3.1.1: Format BirdNET results --------------------
   observeEvent(input$run_format, {
     req(selected_dir())
     add_log("Reformatting BirdNET results ...")
@@ -308,7 +324,7 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  ## Step 3.1.2: Filter BirdNET results ----
+  #### Step 3.1.2: Filter BirdNET results --------------------
   observeEvent(input$run_filter, {
     req(selected_dir())
     add_log("Filter by species list ...")
@@ -318,7 +334,7 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  ## Step 3.2: Extract BirdNET results ----
+  #### Step 3.2: Extract BirdNET results ---------------------
   observeEvent(input$run_extract, {
     req(selected_dir())
     add_log("Extracting BirdNET results ...")
@@ -332,7 +348,7 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  ## Step 4: Archive ----
+  ### Step 4: Archive ----------------------------------------
   observeEvent(input$run_archive, {
     req(selected_dir(), input$path2archive, input$db)
     add_log("Archiving results...")
@@ -348,7 +364,7 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  # Results: load BirdNET.xlsx ----
+  ### Results: load BirdNET.xlsx -----------------------------
   results_data <- reactiveVal(NULL)
 
   observeEvent(input$load_results, {
@@ -406,8 +422,8 @@ server <- function(input, output, session) {
     n    <- nrow(df)
     ntax <- n_distinct(df$Taxon)
     tagList(
-      value_box("Detections", n,    theme = "primary", showcase = bs_icon("soundwave")),
-      value_box("Species",    ntax, theme = "success", showcase = bs_icon("feather"))
+      value_box("Detections", n,    theme = "primary", showcase = bsicons::bs_icon("soundwave")),
+      value_box("Species",    ntax, theme = "success", showcase = bsicons::bs_icon("feather"))
     )
   })
 

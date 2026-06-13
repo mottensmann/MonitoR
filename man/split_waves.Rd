@@ -12,5 +12,6 @@ split_waves(path, pattern = c(".wav", ".mp3"))
 \item{pattern}{file format, .wav or .mp3}
 }
 \description{
-Split wave files in 10 minute segments
+Split long wave files in segments and overwrite input files. For safety reasons,
+files are first saved to a directory \code{temp} before replacing the input.
 }

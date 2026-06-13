@@ -9,7 +9,7 @@ Authors@R: c(
       role = c("aut", "cre")
     )
   )
-Description: Suite of functions to automatise analyses and validation of monitoring data, with a special emphasis on passive acoustic monitoring (PAM), partly relying on BirdNET-Analyzer and NocMigR2.
+Description: Suite of functions to automatise analyses and validation of monitoring data, with a special emphasis on passive acoustic monitoring (PAM), partly relying on BirdNET-Analyzer and NocMigR2. Including a Shiny-App to handle analyses and valdiation purely in R.
 License: GPL (>= 3)
 Encoding: UTF-8
 Imports: 
@@ -22,7 +22,6 @@ Imports:
   methods,
   NocMigR2,
   openxlsx,
-  shiny (>= 0.13),
   patchwork,
   pbapply,
   rstudioapi,
@@ -30,12 +29,22 @@ Imports:
   readxl,
   readr,
   tidyr,
-  tuneR
+  tuneR,
+  utils
 Remotes: 
   mottensmann/NocMigR2,
   birdnet-team/birdnetR
 Config/roxygen2/version: 8.0.0
 RoxygenNote: 8.0.0
 Suggests: 
-    testthat (>= 3.0.0)
+    bsicons,
+    DT,
+    htmltools,
+    shiny,
+    shinyFiles,
+    shinyjs,
+    tidyverse,
+    testthat (>= 3.0.0),
+    thematic,
+    writexl
 Config/testthat/edition: 3
