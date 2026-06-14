@@ -49,7 +49,9 @@ ui <- page_navbar(
         input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
         input_switch("recursive",  "Recursive directory search",          value = TRUE),
         input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
-        input_switch("spectro",    "Create spectrograms", value = FALSE)
+        input_switch("spectro",    "Create spectrograms", value = FALSE),
+        input_switch("rerun",    "Skip existing results", value = TRUE)
+
       ),
 
       card(
@@ -64,6 +66,7 @@ ui <- page_navbar(
           numericInput("lat", "Latitude",  value = NA),
           numericInput("lon", "Longitude", value = NA)
         ),
+        selectInput("model", "Model", choices = c("BirdNET v2.4", "Perch v2")),
         textInput("micro", "External Microphone", value = ""),
         layout_columns(
           col_widths = c(4, 4, 4),
@@ -71,7 +74,6 @@ ui <- page_navbar(
           numericInput("overlap",     "Overlap",         value = 0,    min = 0,   max = 1,   step = 0.1),
           numericInput("sensitivity", "Sensitivity",     value = 1.25, min = 0.5, max = 1.5, step = 0.05)
         ),
-        selectInput("model", "Model", choices = c("BirdNET v2.4", "Perch v2"))
       )
     ),
 
@@ -292,7 +294,7 @@ server <- function(input, output, session) {
         chunk_overlap_s     = input$overlap,
         sigmoid_sensitivity = input$sensitivity,
         model               = input$model,
-        skip.existing.results = TRUE)
+        skip.existing.results = input$rerun)
       add_log("Classification completed")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
