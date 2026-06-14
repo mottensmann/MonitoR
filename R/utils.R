@@ -184,10 +184,24 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
                       recursive = T,
                       full.names = T)
 
+  # Filter out any files from the folder "extracted"
+  waves <- waves[!grepl("extracted/", waves)]
+
+  ## check if recording length > 600
+  rec.length <- sapply(waves, function(wav) {
+    audio <- tuneR::readWave(filename = wav, header = TRUE)
+    sec <- audio$samples / audio$sample.rate
+    return(sec)
+  })
+
+  if (all(rec.length <= 600)) {
+    message('All ', length(waves), ' files at max 600 sec. Skip split waves.')
+  } else {
+
   if (interactive()) message('* ', length(waves), ' audio files to process\n')
 
   ## create TempDir
-  TempDir <- tempdir()
+  TempDir <- file.path(path, 'TempDir')
   dir.create(TempDir, showWarnings = T)
 
   out <- lapply(1:length(waves), function(x) {
@@ -229,7 +243,7 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
     ## create file names based on ctime of recordings
     df[["new.name"]] <- paste0(format(df[["ctime"]], "%Y%m%d_%H%M%S"),toupper(pattern))
 
-    ## extract segments
+    message("extract segments")
     silent <- lapply(1:nrow(df), function(i) {
       ## read audio
       audio <- tuneR::readWave(filename = waves[x],
@@ -247,6 +261,7 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
               overwrite = T)
   })
   unlink(TempDir, recursive = T)
+  }
 }
 
 #' Interactively check, load and optionally install missing R packages
