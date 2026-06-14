@@ -230,31 +230,36 @@ birdNET_select <- function(
   Taxon <- NULL
   model <- match.arg(model)
 
+  if (model ==        'BirdNET v2.4') {
+    xlsx <-           'BirdNET.xlsx'
+
+  } else if (model == 'Perch v2') {
+    xlsx <-           'Perch.xlsx'
+  }
+
   ## 'BirdNET v2.4'
-  if (model == 'BirdNET v2.4') {
     mlist <- read_birdnet_slist(.cached = T)
     slist <- readr::read_delim(slist, delim = "_", col_names = c('name_scientific', 'name_de'), show_col_types = F)
     slist[['name']] <- paste0(slist[["name_scientific"]], '_', slist[["name_de"]])
     names_not_matched <- slist[["name"]][!slist[["name"]] %in% mlist[["name"]]]
     if (length(names_not_matched)) warning('Not all species names found in model', model)
-  }
 
   ## read and filter Records
-  Records <- readxl::read_xlsx(file.path(path, "BirdNET.xlsx"))
+  Records <- readxl::read_xlsx(file.path(path, xlsx))
 
   before <- nrow(Records)
   Records <- dplyr::filter(Records, Taxon %in% slist[["name_de"]])
   after <- nrow(Records)
   message('Filtered Records: From ', before, ' to ', after)
 
-  Meta <- readxl::read_xlsx(file.path(path, "BirdNET.xlsx"), sheet = 'Meta')
+  Meta <- readxl::read_xlsx(file.path(path, xlsx), sheet = 'Meta')
   out <- list(
     Records = Records,
     #Records.dd = BirdNET_table$records.day,
     #Records.hh = BirdNET_table$records.hour,
     Meta = Meta)
   openxlsx::write.xlsx(x = out,
-                       file = file.path(path, "BirdNET.xlsx"), overwrite = T)
+                       file = file.path(path, xlsx), overwrite = T)
   NocMigR2::reformat_xlsx(path = path)
   return(Records)
 }

@@ -19,7 +19,7 @@
 #' @importFrom patchwork plot_layout plot_annotation
 #' @export
 #'
-birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
+birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2")) {
 
   model <- match.arg(model)
   # Load existing workbook

@@ -163,9 +163,9 @@ ui <- page_navbar(
 
       card(
         card_header("Controls"),
-        actionButton("load_results", "Load BirdNET.xlsx",
+        actionButton("load_results", paste('Load', 'results'),
                      icon = icon("folder-open"), class = "btn-primary w-100 mb-3"),
-        actionButton("save_results", "Save BirdNET.xlsx",
+        actionButton("save_results", paste('Save', 'results'),
                      icon = icon("floppy-disk"), class = "btn-success w-100 mb-3"),
         uiOutput("taxon_ui"),
         input_switch("sync_filter",    "Filter table by taxon",           value = TRUE),
@@ -286,7 +286,7 @@ server <- function(input, output, session) {
         return()
       }
       add_log(paste("Found", length(wav_files), "file(s)"))
-      add_log(paste("Starting birdnetR ..."))
+      add_log(paste0("Starting birdnetR ", "(", input$model, ")", " ..."))
 
       MonitoR::run_birdnet(
         wave_files          = wav_files,
@@ -295,14 +295,14 @@ server <- function(input, output, session) {
         sigmoid_sensitivity = input$sensitivity,
         model               = input$model,
         skip.existing.results = input$rerun)
-      add_log("Classification completed")
+      add_log(paste0("Classification ", "(", input$model, ")", " completed"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
   #### Step 3.1.1: Format BirdNET results --------------------
   observeEvent(input$run_format, {
     req(selected_dir())
-    add_log("Reformatting BirdNET results ...")
+    add_log(paste('Reformatting', input$model, 'results ...'))
     tryCatch({
       meta <- NocMigR2::BirdNET_meta(
         Location    = if (nzchar(input$location)) input$location else NA,
@@ -319,10 +319,11 @@ server <- function(input, output, session) {
         selected_dir(), NocMigR2::BirdNET,
         am_config = input$am_config,
         recursive = input$recursive,
-        meta      = meta
+        meta      = meta,
+        model     = input$model
       )
       n <- nrow(data[[1]][['Records']])
-      add_log(paste("BirdNET results formatted", n, "records found"))
+      add_log(paste(input$model,"results formatted", n, "-records found"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -331,20 +332,21 @@ server <- function(input, output, session) {
     req(selected_dir())
     add_log("Filter by species list ...")
     tryCatch({
-      data <- MonitoR::birdNET_select(path = selected_dir())
-      add_log(paste("BirdNET results filtered",  nrow(data), "records retained"))
+      data <- MonitoR::birdNET_select(path = selected_dir(), model = input$model)
+      add_log(paste(input$model, "results filtered",  nrow(data), "-records retained"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
   #### Step 3.2: Extract BirdNET results ---------------------
   observeEvent(input$run_extract, {
     req(selected_dir())
-    add_log("Extracting BirdNET results ...")
+    add_log(paste('Extracting', input$model, 'results ...'))
     tryCatch({
       lapply(
         selected_dir(), NocMigR2::BirdNET_extract,
         hyperlink = input$hyperlink,
-        spectro   = input$spectro
+        spectro   = input$spectro,
+        model     = input$model
       )
       add_log("Extraction completed")
     }, error = function(e) add_log(e$message, "ERROR"))
@@ -356,7 +358,7 @@ server <- function(input, output, session) {
     add_log("Archiving results...")
     tryCatch({
       NocMigR2::BirdNET_archive_am(
-        BirdNET_results = file.path(selected_dir(), "BirdNET.xlsx"),
+        BirdNET_results = file.path(selected_dir(), ifelse(input$model == 'BirdNET v2.4', "BirdNET.xlsx", "Perch.xlsx")),
         path2archive    = input$path2archive,
         keep.false      = input$keep_false,
         db              = input$db,
@@ -371,9 +373,9 @@ server <- function(input, output, session) {
 
   observeEvent(input$load_results, {
     req(selected_dir())
-    fp <- file.path(selected_dir(), "BirdNET.xlsx")
+    fp <- file.path(selected_dir(), ifelse(input$model == 'BirdNET v2.4', "BirdNET.xlsx", "Perch.xlsx"))
     if (!file.exists(fp)) {
-      showNotification("BirdNET.xlsx not found. Run the workflow first.", type = "error")
+      showNotification(paste(ifelse(input$model == 'BirdNET v2.4', "BirdNET.xlsx", "Perch.xlsx")), "not found. Run the workflow first.", type = "error")
       return()
     }
     df <- read_xlsx(fp)
@@ -391,10 +393,10 @@ server <- function(input, output, session) {
   # Save edited data back to xlsx
   observeEvent(input$save_results, {
     req(results_data(), selected_dir())
-    fp <- file.path(selected_dir(), "BirdNET.xlsx")
+    fp <- file.path(selected_dir(), ifelse(input$model == 'BirdNET v2.4', "BirdNET.xlsx", "Perch.xlsx"))
     tryCatch({
       # Write Records sheet; preserve Meta sheet if present
-      meta_fp <- file.path(selected_dir(), "BirdNET.xlsx")
+      meta_fp <- file.path(selected_dir(), ifelse(input$model == 'BirdNET v2.4', "BirdNET.xlsx", "Perch.xlsx"))
       meta_df <- tryCatch(read_xlsx(meta_fp, sheet = "Meta"), error = function(e) NULL)
       sheets <- list(Records = results_data())
       if (!is.null(meta_df)) sheets$Meta <- meta_df
@@ -620,7 +622,7 @@ server <- function(input, output, session) {
   output$activity_plot <- renderPlot({
     req(results_data(), input$taxon)
     tryCatch(
-      MonitoR::birdNET_graph(path = selected_dir(), taxon = isolate(input$taxon)),
+      MonitoR::birdNET_graph(path = selected_dir(), taxon = isolate(input$taxon), model = input$model),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")
