@@ -22,12 +22,18 @@
 birdNET_graph <- function(path, taxon, model = c("BirdNET_V2.4", "Perch v2")) {
 
   model <- match.arg(model)
+  # Load existing workbook
+  if (model == 'BirdNET v2.4') {
+    xlsx    <- 'BirdNET.xlsx'
+  } else if (model == 'Perch v2') {
+    xlsx <- 'Perch.xlsx'
+  }
 
   # Silence R CMD CHECK notes for NSE column names
   Taxon <- T1 <- hh <- dd <- Verification <- n <- NULL
 
   ## 1. Load & prepare data
-  df <- readxl::read_xlsx(file.path(path, "BirdNET.xlsx")) |>
+  df <- readxl::read_xlsx(file.path(path, xlsx)) |>
     dplyr::filter(Taxon == taxon) |>
     dplyr::mutate(
       hh = lubridate::hour(T1),
