@@ -139,36 +139,53 @@ birdNET_process <- function(
 #' @export
 #'
 read_birdnet_slist <- function(
-    model = c('BirdNET v2.4'),
+    model = c('BirdNET v2.4', 'Perch v2'),
     language = 'de',
     .cached = F) {
+
+  model <- match.arg(model)
   # upgrading to birdnetR 1.0 [2026-05-29] -------------------
   if (isFALSE(.cached)) {
-    model <- match.arg(model)
-
     ## read model
     if (model == 'BirdNET v2.4') {
-      model = birdnetR::load_birdnet(type = 'acoustic', version = '2.4', language = language)
+      selected_model = birdnetR::load_birdnet(type = 'acoustic', version = '2.4', language = language)
+    } else if (model == 'Perch v2') {
+      selected_model = birdnetR::load_perch()
     }
     ## read labels
-    slist <- birdnetR::get_species_list(model)
+    slist <- birdnetR::get_species_list(selected_model)
 
-    ## format slist
-    slist <- lapply(slist, function(name) {
-      out <- stringr::str_split(name, "_")
-      data.frame(
-        name = name,
-        name_scientific = out[[1]][1],
-        name_de = out[[1]][2])
-    })
-    slist <- do.call("rbind", slist)
+    if (model == 'BirdNET v2.4') {
+      ## format slist
+      slist <- lapply(slist, function(name) {
+        out <- stringr::str_split(name, "_")
+        data.frame(
+          name = name,
+          name_scientific = out[[1]][1],
+          name_de = out[[1]][2])
+      })
+      slist <- do.call("rbind", slist)
+    } else if (model == 'Perch v2') {
+      slist <- data.frame(
+        name = slist,
+        name_scientific = slist,
+        name_de = NA)
+    }
   } else if (isTRUE(.cached)) {
-    slist <- readr::read_delim(system.file("extdata/BirdNET_v2.4.txt", package = "MonitoR"),
-                               delim = " ",
-                               col_names = c('name', 'name_scientific', 'name_de'),
-                               show_col_types = F)
-  }
+    if (model == 'BirdNET v2.4') {
+      slist <- readr::read_delim(system.file("extdata/BirdNET_v2.4.txt", package = "MonitoR"),
+                                 delim = " ",
+                                 col_names = c('name', 'name_scientific', 'name_de'),
+                                 show_col_types = F)
 
+    } else if (model == 'Perch v2') {
+      slist <- readr::read_delim(system.file("extdata/Perch_v2_slist.txt", package = "MonitoR"),
+                                 delim = " ",
+                                 col_names = c('name', 'name_scientific', 'name_de'),
+                                 show_col_types = F)
+    }
+
+  }
   return(slist)
 }
 
@@ -238,11 +255,11 @@ birdNET_select <- function(
   }
 
   ## 'BirdNET v2.4'
-    mlist <- read_birdnet_slist(.cached = T)
-    slist <- readr::read_delim(slist, delim = "_", col_names = c('name_scientific', 'name_de'), show_col_types = F)
-    slist[['name']] <- paste0(slist[["name_scientific"]], '_', slist[["name_de"]])
-    names_not_matched <- slist[["name"]][!slist[["name"]] %in% mlist[["name"]]]
-    if (length(names_not_matched)) warning('Not all species names found in model', model)
+  mlist <- read_birdnet_slist(.cached = T)
+  slist <- readr::read_delim(slist, delim = "_", col_names = c('name_scientific', 'name_de'), show_col_types = F)
+  slist[['name']] <- paste0(slist[["name_scientific"]], '_', slist[["name_de"]])
+  names_not_matched <- slist[["name"]][!slist[["name"]] %in% mlist[["name"]]]
+  if (length(names_not_matched)) warning('Not all species names found in model', model)
 
   ## read and filter Records
   Records <- readxl::read_xlsx(file.path(path, xlsx))

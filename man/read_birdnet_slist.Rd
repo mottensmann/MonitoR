@@ -4,7 +4,11 @@
 \alias{read_birdnet_slist}
 \title{Read and subset species list from models}
 \usage{
-read_birdnet_slist(model = c("BirdNET v2.4"), language = "de", .cached = F)
+read_birdnet_slist(
+  model = c("BirdNET v2.4", "Perch v2"),
+  language = "de",
+  .cached = F
+)
 }
 \arguments{
 \item{model}{One of \code{c('BirdNET v2.4', 'Perch v2')}}
