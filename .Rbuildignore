@@ -6,5 +6,5 @@ Notes.Rmd
 ^\.positai$
 ^\.claude$
 hyla/
-R/test.R
 README*
+R/debugging/

@@ -198,69 +198,69 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
     message('All ', length(waves), ' files at max 600 sec. Skip split waves.')
   } else {
 
-  if (interactive()) message('* ', length(waves), ' audio files to process\n')
+    if (interactive()) message('* ', length(waves), ' audio files to process\n')
 
-  ## create TempDir
-  TempDir <- file.path(path, 'TempDir')
-  dir.create(TempDir, showWarnings = T)
+    ## create TempDir
+    TempDir <- file.path(path, 'TempDir')
+    dir.create(TempDir, showWarnings = T)
 
-  out <- lapply(1:length(waves), function(x) {
-    message('* Process ', basename(waves[x]), '\n')
+    out <- lapply(1:length(waves), function(x) {
+      message('* Process ', basename(waves[x]), '\n')
 
-    ## read header of waves
-    audio <- tuneR::readWave(filename = waves[x], header = TRUE)
-    ## estimate length in seconds
-    sec <- audio$samples / audio$sample.rate
-    ## define breaks to write audio chunks (keep unique) if
-    ## last is identical to duration
-    breaks <- unique(c(seq(from = 0, to = sec, by = 600), sec))
-    ## get time from file name
-    head <- lubridate::make_datetime(
-      year = as.numeric(substr(basename(waves[x]), 1, 4)),
-      month = as.numeric(substr(basename(waves[x]), 5, 6)),
-      day = as.numeric(substr(basename(waves[x]), 7, 8)),
-      hour = as.numeric(substr(basename(waves[x]), 10, 11)),
-      min =  as.numeric(substr(basename(waves[x]), 12, 13)),
-      sec = as.numeric(substr(basename(waves[x]), 14, 15)))
+      ## read header of waves
+      audio <- tuneR::readWave(filename = waves[x], header = TRUE)
+      ## estimate length in seconds
+      sec <- audio$samples / audio$sample.rate
+      ## define breaks to write audio chunks (keep unique) if
+      ## last is identical to duration
+      breaks <- unique(c(seq(from = 0, to = sec, by = 600), sec))
+      ## get time from file name
+      head <- lubridate::make_datetime(
+        year = as.numeric(substr(basename(waves[x]), 1, 4)),
+        month = as.numeric(substr(basename(waves[x]), 5, 6)),
+        day = as.numeric(substr(basename(waves[x]), 7, 8)),
+        hour = as.numeric(substr(basename(waves[x]), 10, 11)),
+        min =  as.numeric(substr(basename(waves[x]), 12, 13)),
+        sec = as.numeric(substr(basename(waves[x]), 14, 15)))
 
-    ## define segments
-    df <- data.frame(
-      ctime = head,
-      from = breaks[1:(length(breaks) - 1)],
-      to = breaks[-1],
-      seconds = diff(breaks),
-      file = basename(waves[x]),
-      path = path,
-      TempDir = TempDir)
+      ## define segments
+      df <- data.frame(
+        ctime = head,
+        from = breaks[1:(length(breaks) - 1)],
+        to = breaks[-1],
+        seconds = diff(breaks),
+        file = basename(waves[x]),
+        path = path,
+        TempDir = TempDir)
 
-    ## adjust times for date_time label as header
-    if (nrow(df) > 1) {
-      for (i in 2:nrow(df)) {
-        df[i, "ctime"] <- df[i - 1, "ctime"] + df[i - 1, "seconds"]
+      ## adjust times for date_time label as header
+      if (nrow(df) > 1) {
+        for (i in 2:nrow(df)) {
+          df[i, "ctime"] <- df[i - 1, "ctime"] + df[i - 1, "seconds"]
+        }
       }
-    }
 
-    ## create file names based on ctime of recordings
-    df[["new.name"]] <- paste0(format(df[["ctime"]], "%Y%m%d_%H%M%S"),toupper(pattern))
+      ## create file names based on ctime of recordings
+      df[["new.name"]] <- paste0(format(df[["ctime"]], "%Y%m%d_%H%M%S"),toupper(pattern))
 
-    message("extract segments")
-    silent <- lapply(1:nrow(df), function(i) {
-      ## read audio
-      audio <- tuneR::readWave(filename = waves[x],
-                               from = df[i, "from"],
-                               to = df[i, "to"],
-                               units = "seconds")
-      #suppressWarnings(tuneR::writeWave(audio, filename = file.path(path, df[i, "new.name"])))
-      suppressWarnings(tuneR::writeWave(audio, filename = file.path(TempDir, df[i, "new.name"])))
-      rm(audio)
-      gc(full = T, verbose = F)
+      message("extract segments")
+      silent <- lapply(1:nrow(df), function(i) {
+        ## read audio
+        audio <- tuneR::readWave(filename = waves[x],
+                                 from = df[i, "from"],
+                                 to = df[i, "to"],
+                                 units = "seconds")
+        #suppressWarnings(tuneR::writeWave(audio, filename = file.path(path, df[i, "new.name"])))
+        suppressWarnings(tuneR::writeWave(audio, filename = file.path(TempDir, df[i, "new.name"])))
+        rm(audio)
+        gc(full = T, verbose = F)
+      })
+      ## copy from TempDir back to path
+      file.copy(from = file.path(df[["TempDir"]], df[["new.name"]]),
+                to = file.path(df[["path"]], df[["new.name"]]),
+                overwrite = T)
     })
-    ## copy from TempDir back to path
-    file.copy(from = file.path(df[["TempDir"]], df[["new.name"]]),
-              to = file.path(df[["path"]], df[["new.name"]]),
-              overwrite = T)
-  })
-  unlink(TempDir, recursive = T)
+    unlink(TempDir, recursive = T)
   }
 }
 
@@ -293,59 +293,4 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
     }
   }
   invisible(lapply(pkgs_available, library, character.only = TRUE))
-}
-
-
-#' get german name via GBIF
-#'
-#' @param sci_name character vector of scientific names
-#' @keywords internal
-#'
-get_german_name <- function(sci_name) {
-  res <- tryCatch({
-    key <- name_backbone(name = sci_name, rank = "species", verbose = FALSE)$usageKey[1]
-    if (is.null(key) || is.na(key)) return(NA_character_)
-
-    vern <- name_usage(key = key, data = "vernacularNames")$data
-    if (is.null(vern) || nrow(vern) == 0) return(NA_character_)
-
-    de <- vern[vern$language %in% c("de", "deu", "ger"), ]
-    if (nrow(de) == 0) return(NA_character_)
-
-    # Bevorzugt preferred = TRUE, sonst erster Treffer
-    if ("preferred" %in% colnames(de) && any(de$preferred, na.rm = TRUE)) {
-      de$vernacularName[which(de$preferred)[1]]
-    } else {
-      de$vernacularName[1]
-    }
-  }, error = function(e) NA_character_)
-
-  return(res)
-}
-
-#' Retrieve trivial names for Perch v2 via rgbif
-#'
-#' @keywords internal
-#' @import rgbif
-#'
-get_trivial_names <- function() {
-  ## read slist
-  df  <- MonitoR::read_birdnet_slist(.cached = T, model = 'Perch')
-  message("Species total: ", nrow(df), " | missing name_de: ", sum(is.na(df$name_de)), "\n")
-
-  ## indices of missing values
-  missing_idx <- which(is.na(df$name_de))
-
-  for (i in seq_along(missing_idx)) {
-    idx <- missing_idx[i]
-    sci <- df$name_scientific[idx]
-
-    name_de <- get_german_name(sci)
-    df$name_de[idx] <- name_de
-
-    if (i %% 50 == 0) message(i, " / ", length(missing_idx), "evaluated\n")
-    Sys.sleep(0.2)
-  }
-  message("Finished. Still missing: ", sum(is.na(df$name_de)), "\n")
-  return(df)
 }
