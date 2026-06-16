@@ -108,12 +108,7 @@ birdNET_process <- function(
   if (model == 'BirdNET v2.4') {
     model = birdnetR::load_birdnet(type = 'acoustic', version = '2.4', language = language)
   } else if (model == 'Perch v2') {
-    #warning('Perch v2 perhaps not yet working')
     model = birdnetR::load_perch()
-    # └─birdnetR::load_perch()
-    # 2.   └─py_birdnet$load_perch_v2("CPU")
-    # 3.     └─reticulate:::py_call_impl(callable, call_args$unnamed, call_args$named)
-    # See `reticulate::py_last_error()$r_trace$full_call` for more details.
   }
 
   ## Predict species -----------------------------------------
