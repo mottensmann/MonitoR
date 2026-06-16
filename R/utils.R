@@ -295,3 +295,57 @@ split_waves <- function(path, pattern = c('.wav', '.mp3')) {
   invisible(lapply(pkgs_available, library, character.only = TRUE))
 }
 
+
+#' get german name via GBIF
+#'
+#' @param sci_name character vector of scientific names
+#' @keywords internal
+#'
+get_german_name <- function(sci_name) {
+  res <- tryCatch({
+    key <- name_backbone(name = sci_name, rank = "species", verbose = FALSE)$usageKey[1]
+    if (is.null(key) || is.na(key)) return(NA_character_)
+
+    vern <- name_usage(key = key, data = "vernacularNames")$data
+    if (is.null(vern) || nrow(vern) == 0) return(NA_character_)
+
+    de <- vern[vern$language %in% c("de", "deu", "ger"), ]
+    if (nrow(de) == 0) return(NA_character_)
+
+    # Bevorzugt preferred = TRUE, sonst erster Treffer
+    if ("preferred" %in% colnames(de) && any(de$preferred, na.rm = TRUE)) {
+      de$vernacularName[which(de$preferred)[1]]
+    } else {
+      de$vernacularName[1]
+    }
+  }, error = function(e) NA_character_)
+
+  return(res)
+}
+
+#' Retrieve trivial names for Perch v2 via rgbif
+#'
+#' @keywords internal
+#' @import rgbif
+#'
+get_trivial_names <- function() {
+  ## read slist
+  df  <- MonitoR::read_birdnet_slist(.cached = T, model = 'Perch')
+  message("Species total: ", nrow(df), " | missing name_de: ", sum(is.na(df$name_de)), "\n")
+
+  ## indices of missing values
+  missing_idx <- which(is.na(df$name_de))
+
+  for (i in seq_along(missing_idx)) {
+    idx <- missing_idx[i]
+    sci <- df$name_scientific[idx]
+
+    name_de <- get_german_name(sci)
+    df$name_de[idx] <- name_de
+
+    if (i %% 50 == 0) message(i, " / ", length(missing_idx), "evaluated\n")
+    Sys.sleep(0.2)
+  }
+  message("Finished. Still missing: ", sum(is.na(df$name_de)), "\n")
+  return(df)
+}
