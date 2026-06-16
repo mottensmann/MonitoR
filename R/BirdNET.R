@@ -255,7 +255,7 @@ birdNET_select <- function(
   }
 
   ## 'BirdNET v2.4'
-  mlist <- read_birdnet_slist(.cached = T)
+  mlist <- read_birdnet_slist(.cached = T, model = model)
   slist <- readr::read_delim(slist, delim = "_", col_names = c('name_scientific', 'name_de'), show_col_types = F)
   slist[['name']] <- paste0(slist[["name_scientific"]], '_', slist[["name_de"]])
   names_not_matched <- slist[["name"]][!slist[["name"]] %in% mlist[["name"]]]
