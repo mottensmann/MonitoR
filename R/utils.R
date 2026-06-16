@@ -149,13 +149,14 @@ read_audacity <- function(path, pattern = c('BirdNET.results.txt', 'BirdNET.labe
 #' @param x string
 #' @inheritParams birdNET_process
 #' @keywords internal
-split_species_names <- function(x, model = 'BirdNET v2.4') {
+split_species_names <- function(x, model = c('BirdNET v2.4', 'Perch v2')) {
+  model <- match.arg(model)
   if (model == 'BirdNET v2.4') {
     parts <- strsplit(x, "_")
     df <- as.data.frame(do.call(rbind, parts), stringsAsFactors = FALSE)
     names(df) <- c("scientific_name", "common_name")
   } else if (model == 'Perch v2') {
-    slist <- read_birdnet_slist(.cached = T)[,c("name_scientific", "name_de")]
+    slist <- read_birdnet_slist(.cached = T, model = model)[,c("name_scientific", "name_de")]
     names(slist) <- c("scientific_name", "common_name")
     df <- dplyr::left_join(
       data.frame(scientific_name = x),

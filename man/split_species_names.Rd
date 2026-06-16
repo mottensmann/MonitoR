@@ -4,7 +4,7 @@
 \alias{split_species_names}
 \title{splits species names}
 \usage{
-split_species_names(x, model = "BirdNET v2.4")
+split_species_names(x, model = c("BirdNET v2.4", "Perch v2"))
 }
 \arguments{
 \item{x}{string}
