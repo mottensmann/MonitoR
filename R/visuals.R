@@ -19,7 +19,7 @@
 #' @importFrom patchwork plot_layout plot_annotation
 #' @export
 #'
-birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2")) {
+birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2", "combined")) {
 
   model <- match.arg(model)
   # Load existing workbook
@@ -27,6 +27,9 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2")) {
     xlsx    <- 'BirdNET.xlsx'
   } else if (model == 'Perch v2') {
     xlsx <- 'Perch.xlsx'
+  } else if (model == 'combined') {
+    xlsx <- basename(path)
+    path <- dirname(path)
   }
 
   # Silence R CMD CHECK notes for NSE column names

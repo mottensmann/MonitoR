@@ -42,16 +42,14 @@ ui <- page_navbar(
       col_widths = c(6, 6),
       card(
         card_header("Data Settings"),
-        shinyDirButton("path", "Select data folder", "Please select a folder"),
+        shinyDirButton("path", "Select input directory", "Please select a folder"),
         div(class = "mt-2 p-2 bg-light rounded text-monospace text-break",
             style = "font-size: 0.9rem; min-height: 40px;",
             textOutput("path_display")),
-        input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
+        #input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
         input_switch("recursive",  "Recursive directory search",          value = TRUE),
-        input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
-        input_switch("spectro",    "Create spectrograms", value = FALSE),
+        #input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
         input_switch("rerun",    "Skip existing results", value = TRUE)
-
       ),
 
       card(
@@ -81,10 +79,23 @@ ui <- page_navbar(
       card_header("Archive Settings"),
       layout_columns(
         col_widths = c(5, 5, 1, 1),
-        textInput("path2archive", "Archive path",           value = "D:/BirdNET/test/Records/", width = "100%"),
-        textInput("db",           "Database path (.xlsx)",  value = "D:/BirdNET/test/db.xlsx",  width = "100%"),
-        div(class = "mt-2", input_switch("keep_false", "Keep false positives", value = FALSE)),
-        div(class = "mt-2", input_switch("png",        "Export PNG",           value = FALSE))
+        div(
+          tags$label("Archive path", class = "form-label"),
+          shinyDirButton("path2archive", "Select archive directory", "Please select a folder", class = "w-100"),
+          div(class = "mt-2 p-2 bg-light rounded text-monospace text-break",
+              style = "font-size: 0.9rem; min-height: 40px;",
+              textOutput("path2archive_display"))
+        ),
+        div(
+          tags$label("Database path (.xlsx)", class = "form-label"),
+          shinyFilesButton("db", "Select database (db.xlsx)", "Please select the database file",
+                           multiple = FALSE, class = "w-100"),
+          div(class = "mt-2 p-2 bg-light rounded text-monospace text-break",
+              style = "font-size: 0.9rem; min-height: 40px;",
+              textOutput("db_display"))
+        ),
+        #div(class = "mt-2", input_switch("keep_false", "Keep false positives", value = FALSE)),
+        #div(class = "mt-2", input_switch("png",        "Export PNG",           value = FALSE))
       )
     )
   ),
@@ -213,41 +224,90 @@ server <- function(input, output, session) {
 
   ### Step 0: Pick folder ------------------------------------
 
+  # Volumes einmalig laden; fester Vektor fuer shinyFiles 0.9.3
   roots <- c(Home = path.expand("~"), shinyFiles::getVolumes()())
 
-  # Load last selected directory from cache file
-  cache_file <- file.path(tempdir(), "monitor_last_dir.txt")
-  last_dir <- tryCatch({
-    if (file.exists(cache_file)) {
-      dir <- readLines(cache_file, n = 1, warn = FALSE)
-      if (dir.exists(dir)) dir else roots[1]
-    } else {
-      roots[1]
-    }
-  }, error = function(e) roots[1])
+  # --- Persistent cache (~/.monitor.txt) ---
+  cache_file <- path.expand("~/.monitor.txt")
 
+  read_cache <- function() {
+    defaults <- list(path = roots[1], path2archive = roots[1], db = "")
+    tryCatch({
+      if (!file.exists(cache_file)) return(defaults)
+      lines <- readLines(cache_file, warn = FALSE)
+      pairs <- strsplit(lines, "=", fixed = TRUE)
+      for (p in pairs) {
+        if (length(p) == 2) defaults[[trimws(p[1])]] <- trimws(p[2])
+      }
+      defaults
+    }, error = function(e) defaults)
+  }
+
+  write_cache <- function(key, value) {
+    tryCatch({
+      current <- read_cache()
+      current[[key]] <- value
+      lines <- paste0(names(current), "=", unlist(current))
+      writeLines(lines, cache_file)
+    }, error = function(e) warning("Could not write cache: ", e$message))
+  }
+
+  cache <- read_cache()
+
+  # --- input$path (data folder) ---
+  last_dir <- if (dir.exists(cache$path)) cache$path else roots[1]
   selected_dir <- reactiveVal(last_dir)
 
   shinyDirChoose(input, "path", roots = roots, session = session)
   observeEvent(input$path, {
     if (is.null(input$path) || any(is.na(input$path))) return()
     new_dir <- parseDirPath(roots, input$path)
+    if (length(new_dir) == 0 || !nzchar(new_dir)) return()
     selected_dir(new_dir)
-    # Save to cache file
-    tryCatch({
-      writeLines(new_dir, cache_file)
-    }, error = function(e) {
-      warning("Could not save directory to cache: ", e$message)
-    })
+    write_cache("path", new_dir)
   })
 
   output$path_display <- renderText({
     path <- selected_dir()
-    if (is.null(path) || !nzchar(path)) {
-      "No folder selected"
-    } else {
-      path
-    }
+    if (is.null(path) || !nzchar(path)) "No folder selected" else path
+  })
+
+  # --- input$path2archive (archive folder) ---
+  last_archive <- if (dir.exists(cache$path2archive)) cache$path2archive else roots[1]
+  selected_archive <- reactiveVal(last_archive)
+
+  shinyDirChoose(input, "path2archive", roots = roots, session = session)
+  observeEvent(input$path2archive, {
+    if (is.null(input$path2archive) || any(is.na(input$path2archive))) return()
+    new_dir <- parseDirPath(roots, input$path2archive)
+    if (length(new_dir) == 0 || !nzchar(new_dir)) return()
+    selected_archive(new_dir)
+    write_cache("path2archive", new_dir)
+  })
+
+  output$path2archive_display <- renderText({
+    path <- selected_archive()
+    if (is.null(path) || !nzchar(path)) "No folder selected" else path
+  })
+
+  # --- input$db (database .xlsx file) ---
+  last_db <- if (nzchar(cache$db) && file.exists(cache$db)) cache$db else ""
+  selected_db <- reactiveVal(last_db)
+
+  shinyFileChoose(input, "db", roots = roots, session = session,
+                  filetypes = c("xlsx"))
+  observeEvent(input$db, {
+    if (is.null(input$db) || any(is.na(input$db))) return()
+    new_file <- parseFilePaths(roots, input$db)
+    if (length(new_file) == 0 || nrow(new_file) == 0) return()
+    fp <- as.character(new_file$datapath)
+    selected_db(fp)
+    write_cache("db", fp)
+  })
+
+  output$db_display <- renderText({
+    fp <- selected_db()
+    if (is.null(fp) || !nzchar(fp)) "No file selected" else fp
   })
 
 
@@ -258,6 +318,7 @@ server <- function(input, output, session) {
     tryCatch({
       MonitoR::strip_device_id(input_dir = selected_dir())
       add_log("Files renamed successfully")
+      message("Files renamed successfully\n")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -267,6 +328,7 @@ server <- function(input, output, session) {
     tryCatch({
       MonitoR::split_waves(path = selected_dir())
       add_log("Waves split successfully")
+      message("Waves split successfully\n")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -274,6 +336,7 @@ server <- function(input, output, session) {
   observeEvent(input$run_birdnet_r, {
     req(selected_dir())
     add_log("Scanning for wav files ...")
+    message("Scanning for wav files ...")
     tryCatch({
       wav_files <- list.files(
         selected_dir(), pattern = "\\.wav$",
@@ -283,10 +346,13 @@ server <- function(input, output, session) {
       wav_files <- wav_files[!stringr::str_detect(wav_files, "extracted")]
       if (length(wav_files) == 0) {
         add_log("No .wav files found in the specified path.", "WARN")
+        message("No .wav files found in the specified path.", "WARN")
         return()
       }
       add_log(paste("Found", length(wav_files), "file(s)"))
       add_log(paste0("Starting birdnetR ", "(", input$model, ")", " ..."))
+      message(paste("Found", length(wav_files), "file(s)"))
+      message(paste0("Starting birdnetR ", "(", input$model, ")", " ..."))
 
       MonitoR::run_birdnet(
         wave_files          = wav_files,
@@ -296,6 +362,8 @@ server <- function(input, output, session) {
         model               = input$model,
         skip.existing.results = input$rerun)
       add_log(paste0("Classification ", "(", input$model, ")", " completed"))
+      message(paste0("Classification ", "(", input$model, ")", " completed\n"))
+
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -303,6 +371,7 @@ server <- function(input, output, session) {
   observeEvent(input$run_format, {
     req(selected_dir())
     add_log(paste('Reformatting', input$model, 'results ...'))
+    message(paste('Reformatting', input$model, 'results ...'))
     tryCatch({
       meta <- NocMigR2::BirdNET_meta(
         Location    = if (nzchar(input$location)) input$location else NA,
@@ -317,13 +386,14 @@ server <- function(input, output, session) {
       )
       data <- lapply(
         selected_dir(), NocMigR2::BirdNET,
-        am_config = input$am_config,
+        am_config = TRUE, #input$am_config,
         recursive = input$recursive,
         meta      = meta,
         model     = input$model
       )
       n <- nrow(data[[1]][['Records']])
-      add_log(paste(input$model,"results formatted", n, "-records found"))
+      add_log(paste(input$model,"results formatted: ", n, "records found"))
+      message(paste(input$model,"results formatted: ", n, "records found\n"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -331,9 +401,11 @@ server <- function(input, output, session) {
   observeEvent(input$run_filter, {
     req(selected_dir())
     add_log("Filter by species list ...")
+    message("Filter by species list ...")
     tryCatch({
       data <- MonitoR::birdNET_select(path = selected_dir(), model = input$model)
-      add_log(paste(input$model, "results filtered",  nrow(data), "-records retained"))
+      add_log(paste(input$model, "results filtered: ",  nrow(data), "records retained"))
+      message(paste(input$model, "results filtered: ",  nrow(data), "records retained\n"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -341,11 +413,11 @@ server <- function(input, output, session) {
   observeEvent(input$run_extract, {
     req(selected_dir())
     add_log(paste('Extracting', input$model, 'results ...'))
+    message(paste('Extracting', input$model, 'results ...'))
     tryCatch({
       lapply(
         selected_dir(), NocMigR2::BirdNET_extract,
-        hyperlink = input$hyperlink,
-        spectro   = input$spectro,
+        hyperlink = FALSE,
         model     = input$model
       )
       add_log("Extraction completed")
@@ -354,17 +426,21 @@ server <- function(input, output, session) {
 
   ### Step 4: Archive ----------------------------------------
   observeEvent(input$run_archive, {
-    req(selected_dir(), input$path2archive, input$db)
+    req(selected_dir(), selected_archive(), selected_db())
     add_log("Archiving results...")
+    message("Archiving results...")
     tryCatch({
       NocMigR2::BirdNET_archive_am(
         BirdNET_results = file.path(selected_dir(), ifelse(input$model == 'BirdNET v2.4', "BirdNET.xlsx", "Perch.xlsx")),
-        path2archive    = input$path2archive,
-        keep.false      = input$keep_false,
-        db              = input$db,
-        png             = input$png
+        path2archive    = selected_archive(),
+        keep.false      = FALSE,
+        #keep.false      = input$keep_false,
+        db              = selected_db(),
+        png             = FALSE
+        # png             = input$png
       )
-      add_log("Archive complete.")
+      add_log("Archiving completed")
+      message("Archiving completed\n")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
