@@ -49,7 +49,6 @@ ui <- page_navbar(
         #input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
         input_switch("recursive",  "Recursive directory search",          value = TRUE),
         #input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
-        #input_switch("spectro",    "Create spectrograms", value = FALSE),
         input_switch("rerun",    "Skip existing results", value = TRUE)
       ),
 
@@ -319,6 +318,7 @@ server <- function(input, output, session) {
     tryCatch({
       MonitoR::strip_device_id(input_dir = selected_dir())
       add_log("Files renamed successfully")
+      message("Files renamed successfully\n")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -328,6 +328,7 @@ server <- function(input, output, session) {
     tryCatch({
       MonitoR::split_waves(path = selected_dir())
       add_log("Waves split successfully")
+      message("Waves split successfully\n")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -335,6 +336,7 @@ server <- function(input, output, session) {
   observeEvent(input$run_birdnet_r, {
     req(selected_dir())
     add_log("Scanning for wav files ...")
+    message("Scanning for wav files ...")
     tryCatch({
       wav_files <- list.files(
         selected_dir(), pattern = "\\.wav$",
@@ -344,10 +346,13 @@ server <- function(input, output, session) {
       wav_files <- wav_files[!stringr::str_detect(wav_files, "extracted")]
       if (length(wav_files) == 0) {
         add_log("No .wav files found in the specified path.", "WARN")
+        message("No .wav files found in the specified path.", "WARN")
         return()
       }
       add_log(paste("Found", length(wav_files), "file(s)"))
       add_log(paste0("Starting birdnetR ", "(", input$model, ")", " ..."))
+      message(paste("Found", length(wav_files), "file(s)"))
+      message(paste0("Starting birdnetR ", "(", input$model, ")", " ..."))
 
       MonitoR::run_birdnet(
         wave_files          = wav_files,
@@ -357,6 +362,8 @@ server <- function(input, output, session) {
         model               = input$model,
         skip.existing.results = input$rerun)
       add_log(paste0("Classification ", "(", input$model, ")", " completed"))
+      message(paste0("Classification ", "(", input$model, ")", " completed\n"))
+
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -364,6 +371,7 @@ server <- function(input, output, session) {
   observeEvent(input$run_format, {
     req(selected_dir())
     add_log(paste('Reformatting', input$model, 'results ...'))
+    message(paste('Reformatting', input$model, 'results ...'))
     tryCatch({
       meta <- NocMigR2::BirdNET_meta(
         Location    = if (nzchar(input$location)) input$location else NA,
@@ -384,7 +392,8 @@ server <- function(input, output, session) {
         model     = input$model
       )
       n <- nrow(data[[1]][['Records']])
-      add_log(paste(input$model,"results formatted", n, "-records found"))
+      add_log(paste(input$model,"results formatted: ", n, "records found"))
+      message(paste(input$model,"results formatted: ", n, "records found\n"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -392,9 +401,11 @@ server <- function(input, output, session) {
   observeEvent(input$run_filter, {
     req(selected_dir())
     add_log("Filter by species list ...")
+    message("Filter by species list ...")
     tryCatch({
       data <- MonitoR::birdNET_select(path = selected_dir(), model = input$model)
-      add_log(paste(input$model, "results filtered",  nrow(data), "-records retained"))
+      add_log(paste(input$model, "results filtered: ",  nrow(data), "records retained"))
+      message(paste(input$model, "results filtered: ",  nrow(data), "records retained\n"))
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
@@ -402,11 +413,11 @@ server <- function(input, output, session) {
   observeEvent(input$run_extract, {
     req(selected_dir())
     add_log(paste('Extracting', input$model, 'results ...'))
+    message(paste('Extracting', input$model, 'results ...'))
     tryCatch({
       lapply(
         selected_dir(), NocMigR2::BirdNET_extract,
-        hyperlink = TRUE, #input$hyperlink,
-        spectro   = FALSE, input$spectro,
+        hyperlink = FALSE,
         model     = input$model
       )
       add_log("Extraction completed")
@@ -417,6 +428,7 @@ server <- function(input, output, session) {
   observeEvent(input$run_archive, {
     req(selected_dir(), selected_archive(), selected_db())
     add_log("Archiving results...")
+    message("Archiving results...")
     tryCatch({
       NocMigR2::BirdNET_archive_am(
         BirdNET_results = file.path(selected_dir(), ifelse(input$model == 'BirdNET v2.4', "BirdNET.xlsx", "Perch.xlsx")),
@@ -427,7 +439,8 @@ server <- function(input, output, session) {
         png             = FALSE
         # png             = input$png
       )
-      add_log("Archive complete.")
+      add_log("Archiving completed")
+      message("Archiving completed\n")
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
