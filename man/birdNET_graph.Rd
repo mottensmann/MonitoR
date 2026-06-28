@@ -4,7 +4,7 @@
 \alias{birdNET_graph}
 \title{Daily and hourly activity visuals}
 \usage{
-birdNET_graph(path, taxon, model = c("BirdNET v2.4", "Perch v2"))
+birdNET_graph(path, taxon, model = c("BirdNET v2.4", "Perch v2", "combined"))
 }
 \arguments{
 \item{path}{Path to directory containing \code{BirdNET.xlsx}}
