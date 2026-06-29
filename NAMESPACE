@@ -2,6 +2,7 @@
 
 export(.check_pkgs)
 export(birdNET_graph)
+export(birdNET_heatmap)
 export(birdNET_process)
 export(birdNET_process_batch)
 export(birdNET_select)
