@@ -342,24 +342,29 @@ run_birdnet <- function(
       "\n  {o,o}",
       "\n  |)  )",
       "\n  -'-'-",
-      '\nProcess ', x, ' out of ', length(wave_files), ' (', model, ')', ' [', strftime(Sys.time(), format = "%Y-%m-%d %H:%M:%S"), ']', "\n"
+      '\nProcess ', basename(wave_files[[x]]), ' -', x, ' out of ', length(wave_files), ' - (', model, ')', ' [', strftime(Sys.time(), format = "%Y-%m-%d %H:%M:%S"), ']', "\n"
     ))
     utils::setTxtProgressBar(pb, x)
     cat("\n")
-    birdNET_process(
-      model = model,
-      audio = wave_files[[x]],
-      language = 'de',
-      slist = slist,
-      batch_size = batch_size,
-      min_confidence = min_confidence,
-      chunk_overlap_s = chunk_overlap_s,
-      sigmoid_sensitivity = sigmoid_sensitivity)
+    results <- birdNET_process(model = model,
+                               audio = wave_files[[x]],
+                               language = 'de',
+                               slist = slist,
+                               batch_size = batch_size,
+                               min_confidence = min_confidence,
+                               chunk_overlap_s = chunk_overlap_s,
+                               sigmoid_sensitivity = sigmoid_sensitivity)
+    ## export audacity labels
+    birdnet2audacity(predictions = results,
+                     wave_files = wave_files[[x]],
+                     model = model)
+    return(results)
+
   })
   ## export audacity labels
-  birdnet2audacity(predictions = predictions,
-                   wave_files = wave_files,
-                   model = model)
+  # birdnet2audacity(predictions = predictions,
+  #                  wave_files = wave_files,
+  #                  model = model)
   return(predictions)
 
   # Close the progress bar
