@@ -194,6 +194,10 @@ ui <- page_navbar(
         nav_panel(
           "Activity plot",
           plotOutput("activity_plot", height = "420px")
+        ),
+        nav_panel(
+          "Heatmap",
+          plotOutput("heatmap_plot", height = "420px")
         )
       )
     )
@@ -699,6 +703,17 @@ server <- function(input, output, session) {
     req(results_data(), input$taxon)
     tryCatch(
       MonitoR::birdNET_graph(path = selected_dir(), taxon = isolate(input$taxon), model = input$model),
+      error = function(e) {
+        plot.new()
+        text(0.5, 0.5, paste("Error:", e$message), col = "red")
+      }
+    )
+  })
+
+  output$heatmap_plot <- renderPlot({
+    req(results_data(), input$taxon)
+    tryCatch(
+      MonitoR::birdNET_heatmap(db = results_data(), taxon = isolate(input$taxon)),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")
