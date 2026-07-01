@@ -145,6 +145,8 @@ ui <- page_navbar(
           accordion_panel(
             title = "4 · Archiving data",
             icon  = bsicons::bs_icon("archive"),
+            actionButton("run_visuals", "Save visuals",
+                         class = "btn-outline-success w-100"),
             actionButton("run_archive", "Archive results",
                          class = "btn-outline-danger w-100")
           )
@@ -428,7 +430,17 @@ server <- function(input, output, session) {
     }, error = function(e) add_log(e$message, "ERROR"))
   })
 
-  ### Step 4: Archive ----------------------------------------
+  ### Step 4.1: Save visuals -----------------------------------
+  observeEvent(input$run_visuals, {
+    req(selected_dir())
+    add_log('Saving visuals ...')
+    tryCatch({
+      MonitoR::export_visuals(path = selected_dir(), model = input$model)
+      add_log('done')
+    }, error = function(e) add_log(e$message, "ERROR"))
+  })
+
+  ### Step 4.2: Archive ----------------------------------------
   observeEvent(input$run_archive, {
     req(selected_dir(), selected_archive(), selected_db())
     add_log("Archiving results...")
@@ -702,7 +714,7 @@ server <- function(input, output, session) {
   output$activity_plot <- renderPlot({
     req(results_data(), input$taxon)
     tryCatch(
-      MonitoR::birdNET_graph(path = selected_dir(), taxon = isolate(input$taxon), model = input$model),
+      MonitoR::birdNET_graph(db = results_data(), taxon = isolate(input$taxon), model = input$model),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")

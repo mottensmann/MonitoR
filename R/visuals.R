@@ -3,7 +3,7 @@
 #' Two sub-panels:
 #' events per day and events per hour.
 #'
-#' @param path Path to directory containing \code{BirdNET.xlsx}
+#'#' @inheritParams birdNET_heatmap
 #' @param taxon Taxon name (matched against the \code{Taxon} column)
 #' @param model Model used to classify; one of \code{"BirdNET_V2.4"} or
 #'   \code{"Perch v2"}
@@ -19,24 +19,31 @@
 #' @importFrom patchwork plot_layout plot_annotation
 #' @export
 #'
-birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2", "combined")) {
+birdNET_graph <- function(db, taxon, model = c("BirdNET v2.4", "Perch v2", "combined")) {
 
   model <- match.arg(model)
-  # Load existing workbook
-  if (model == 'BirdNET v2.4') {
-    xlsx    <- 'BirdNET.xlsx'
-  } else if (model == 'Perch v2') {
-    xlsx <- 'Perch.xlsx'
-  } else if (model == 'combined') {
-    xlsx <- basename(path)
-    path <- dirname(path)
+
+  if (is.data.frame(db)) {
+    df <- db
+  } else {
+    # Load existing workbook
+    if (model == 'BirdNET v2.4') {
+      xlsx    <- 'BirdNET.xlsx'
+    } else if (model == 'Perch v2') {
+      xlsx <- 'Perch.xlsx'
+    } else if (model == 'combined') {
+      xlsx <- basename(db)
+      path <- dirname(db)
+    }
+    df <-  readxl::read_xlsx(file.path(db, xlsx))
   }
+
 
   # Silence R CMD CHECK notes for NSE column names
   Taxon <- T1 <- hh <- dd <- Verification <- n <- NULL
 
-  ## 1. Load & prepare data
-  df <- readxl::read_xlsx(file.path(path, xlsx)) |>
+  ## 1. Prepare data
+  df <- df |>
     dplyr::filter(Taxon == taxon) |>
     dplyr::mutate(
       hh = lubridate::hour(T1),
@@ -89,8 +96,9 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2", "co
       y = "Events"
     ) +
     egg::theme_presentation(base_size = 20) +
-    theme(panel.grid    = element_blank(),
-          axis.text.x   = element_text(angle = 45, hjust = 1))
+    theme(panel.grid      = element_blank(),
+          plot.background = element_rect(fill = "white", colour = NA),
+          axis.text.x     = element_text(angle = 45, hjust = 1))
 
   ## 5. Plot B: events per hour
   plot_hour <- df |>
@@ -106,7 +114,8 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2", "co
       y = ""
     ) +
     egg::theme_presentation(base_size = 20) +
-    theme(panel.grid    = element_blank())
+    theme(panel.grid      = element_blank(),
+          plot.background = element_rect(fill = "white", colour = NA))
 
 
   ## 6. Combine with patchwork
@@ -130,12 +139,11 @@ birdNET_graph <- function(path, taxon, model = c("BirdNET v2.4", "Perch v2", "co
 #' @param db data frame or path to xlsx file
 #' @export
 #'
-birdNET_heatmap <- function(db, taxon) {
-
-  message(db)
-  message(taxon)
+birdNET_heatmap <- function(db, taxon, model = c("BirdNET v2.4", "Perch v2", "combined")) {
 
   Taxon <- T1 <- Verification <- dd <- hh <- NULL
+
+  model <- match.arg(model)
 
   if (is.data.frame(db)) {
     df <- db
@@ -182,7 +190,7 @@ birdNET_heatmap <- function(db, taxon) {
   p <-
     ggplot(heat_df, aes(x = dd, y = hh, fill = n)) +
     geom_tile(color = "black", linewidth = 0.02) +
-    geom_text(aes(label = ifelse(n > 0, n, "")), size = 3, na.rm = T) +
+    geom_text(aes(label = ifelse(n > 0, n, "")), size = 3, na.rm = T, colour = "black") +
     scale_x_date(
       date_labels = "%d.%m",
       date_breaks = "1 day",
@@ -202,10 +210,68 @@ birdNET_heatmap <- function(db, taxon) {
     labs(x        = "Date",
          y        = "Hour",
          title    = paste(taxon, subtitle_text),
-         caption  = paste0(nrow(df), " event(s)", "\n",
+         caption  = paste0(nrow(df), " event(s)  (", model, ")\n",
                            min(df$T1), " - ", max(df$T1))) +
     egg::theme_presentation(base_size = 14) +
     theme(panel.grid   = element_blank(),
           axis.text.x  = element_text(angle = 45, hjust = 1),)
   return(p)
+}
+
+
+#'
+#' @inheritParams birdNET_graph
+#' @importFrom ggplot2 ggsave
+#' @export
+#'
+export_visuals <- function(path, model = c("BirdNET v2.4", "Perch v2", "combined")) {
+
+  plot_dir <- file.path(path, "ggplot")
+  dir.create(plot_dir, showWarnings = F)
+
+  ## check model ----
+  model <- match.arg(model)
+  # Load existing workbook
+  if (model == 'BirdNET v2.4') {
+    xlsx    <- 'BirdNET.xlsx'
+  } else if (model == 'Perch v2') {
+    xlsx <- 'Perch.xlsx'
+  } else if (model == 'combined') {
+    xlsx <- basename(path)
+    path <- dirname(path)
+  }
+
+  ## load results ----
+  db <- readxl::read_xlsx(file.path(path, xlsx))
+  taxa <- sort(unique(db[["Taxon"]]))
+
+  ## create heatmaps ----
+  heatmap_print <- function(x, db, model) {
+    p <- birdNET_heatmap(db = db, taxon =  x)
+    ggplot2::ggsave(
+      plot     = p,
+      device   = 'jpg',
+      width    = 1200,
+      height   = 800,
+      units    = 'px',
+      dpi      = 150,
+      filename = file.path(plot_dir, trimws(paste0(x, '_heatmap_', model, '.jpg'))))
+  }
+
+  heatmaps <- pbapply::pblapply(taxa, heatmap_print, db = db, model = model)
+
+  ## create acitvity plots ----
+  graphs_print <- function(x, db, model) {
+    p <- birdNET_graph(db = db, taxon =  x, model = model)
+    ggplot2::ggsave(
+      plot     = p,
+      device   = 'jpg',
+      width    = 1200,
+      height   = 800,
+      units    = 'px',
+      dpi      = 150,
+      filename = file.path(plot_dir, trimws(paste0(x, '_graph_', model, '.jpg'))))
+  }
+
+  graphs <- pbapply::pblapply(taxa, graphs_print, db = db, model = model)
 }

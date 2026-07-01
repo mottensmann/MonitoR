@@ -4,12 +4,15 @@
 \alias{birdNET_heatmap}
 \title{Heatmap of BirdNET detections}
 \usage{
-birdNET_heatmap(db, taxon)
+birdNET_heatmap(db, taxon, model = c("BirdNET v2.4", "Perch v2", "combined"))
 }
 \arguments{
 \item{db}{data frame or path to xlsx file}
 
 \item{taxon}{Taxon name (matched against the \code{Taxon} column)}
+
+\item{model}{Model used to classify; one of \code{"BirdNET_V2.4"} or
+\code{"Perch v2"}}
 }
 \description{
 Heatmap of BirdNET detections
