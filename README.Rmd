@@ -21,11 +21,12 @@ knitr::opts_chunk$set(
 
 ___
 
-This package provides workflows in form of `R Markdown` templates for processing monitoring data, for now mostly focusing on the analysis of audio files obtained by deploying passive acoustic monitoring (PAM) devices. The package partly relies on [NocMigR2](github.com/mottensmann/NocMigR2). See details there.
+This package provides workflows in form of `R Markdown` templates & `Shiny-Apps` for processing monitoring data, for now mostly focusing on the analysis of long audio files obtained by deploying passive acoustic monitoring (PAM) devices. The package partly relies on [NocMigR2](github.com/mottensmann/NocMigR2). See details there.
     
-To install the package, use [devtools](https://github.com/r-lib/devtools):
+To install the package, use [pak](https://github.com/r-lib/pak):
 
 ```{r Install-NocMigR2, eval=FALSE}
+if (!'pak' %in% installed.packages()) install.packages("pak")
 pak::pak("mottensmann/MonitoR", dependencies = TRUE)
 ```
 
@@ -47,6 +48,7 @@ birdnet_app(display = "external")
 knitr::include_graphics(path = "README_files/app1.png", dpi = 300)
 knitr::include_graphics(path = "README_files/app2.png", dpi = 300)
 knitr::include_graphics(path = "README_files/app3.png", dpi = 300)
+knitr::include_graphics(path = "README_files/app4.png", dpi = 300)
 ```
 
 
@@ -59,6 +61,9 @@ knitr::include_graphics(path = "README_files/app3.png", dpi = 300)
 * (1) Preprocessing of audio data (renaming to datetime, removing unnecessary file prefixes)
 * (2) Extracting results obtained by using a AI-based classifier with [BirdNET-Analyzer](https://github.com/kahst/BirdNET-Analyzer)
 * (3) Archiving manually verified records to a xlsx-database
+
+*Not further developed. Easier implementation provided in form of the Shiny-App*
+
 
 ### `nestcamera`
 
