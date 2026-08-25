@@ -4,11 +4,9 @@
 \alias{birdNET_graph}
 \title{Daily and hourly activity visuals}
 \usage{
-birdNET_graph(path, taxon, model = c("BirdNET v2.4", "Perch v2", "combined"))
+birdNET_graph(db, taxon, model = c("BirdNET v2.4", "Perch v2", "combined"))
 }
 \arguments{
-\item{path}{Path to directory containing \code{BirdNET.xlsx}}
-
 \item{taxon}{Taxon name (matched against the \code{Taxon} column)}
 
 \item{model}{Model used to classify; one of \code{"BirdNET_V2.4"} or
@@ -20,4 +18,7 @@ A \code{patchwork} object with two side-by-side ggplot panels
 \description{
 Two sub-panels:
 events per day and events per hour.
+}
+\details{
+#' @inheritParams birdNET_heatmap
 }
