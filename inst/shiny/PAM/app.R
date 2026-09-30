@@ -49,28 +49,31 @@ ui <- page_navbar(
         #input_switch("am_config",  "Load AudioMoth config (CONFIG.txt)", value = TRUE),
         input_switch("recursive",  "Recursive directory search",          value = TRUE),
         #input_switch("hyperlink",  "Create hyperlinks", value = TRUE),
-        input_switch("rerun",    "Skip existing results", value = TRUE)
+        input_switch("rerun",    "Skip existing results", value = TRUE),
+        selectInput( "lang",      "Language",    choices = c("de", "en")),
       ),
-
       card(
-        card_header("BirdNET Meta Data"),
-        layout_columns(
-          col_widths = c(6, 6),
-          textInput("location", "Location name", value = "None"),
-          selectInput("device", "Recorder", choices = c("AudioMoth", "SongMeter"))
-        ),
-        layout_columns(
-          col_widths = c(6, 6),
-          numericInput("lat", "Latitude",  value = NA),
-          numericInput("lon", "Longitude", value = NA)
-        ),
-        selectInput("model", "Model", choices = c("BirdNET v2.4", "Perch v2")),
-        textInput("micro", "External Microphone", value = ""),
+        card_header("Meta Data"),
+        ## location
         layout_columns(
           col_widths = c(4, 4, 4),
-          numericInput("min_conf",    "Min. Confidence", value = 0.7,  min = 0,   max = 1,   step = 0.05),
-          numericInput("overlap",     "Overlap",         value = 0,    min = 0,   max = 1,   step = 0.1),
-          numericInput("sensitivity", "Sensitivity",     value = 1.25, min = 0.5, max = 1.5, step = 0.05)
+          textInput("location", "Location", value = "None"),
+          numericInput("lat",   "Lat (N)",  value = NA),
+          numericInput("lon",   "Lon (E)",  value = NA)
+        ),
+        ## recorder
+        layout_columns(
+          col_widths = c(4, 4,4),
+          selectInput("device", "Recorder",  choices = c("AudioMoth", "SongMeter")),
+          textInput("micro", "Ext. Mic.", value = ""),
+          selectInput("model", "AI Model",    choices = c("BirdNET v2.4", "Perch v2"))
+        ),
+        ## BirdNET settings
+        layout_columns(
+          col_widths = c(4, 4, 4),
+          numericInput("min_conf", "Min. Conf.",  value = 0.7,  min = 0,   max = 1,   step = 0.05),
+          numericInput("overlap", "Overlap",     value = 0,    min = 0,   max = 1,   step = 0.1),
+          numericInput("sensitivity", "Sensitivity", value = 1.25, min = 0.5, max = 1.5, step = 0.05)
         ),
       )
     ),
@@ -78,7 +81,7 @@ ui <- page_navbar(
     card(
       card_header("Archive Settings"),
       layout_columns(
-        col_widths = c(5, 5, 1, 1),
+        col_widths = c(5, 5),
         div(
           tags$label("Archive path", class = "form-label"),
           shinyDirButton("path2archive", "Select archive directory", "Please select a folder", class = "w-100"),
@@ -107,7 +110,6 @@ ui <- page_navbar(
 
     layout_columns(
       col_widths = c(3, 9),
-
       card(
         card_header("Run Steps"),
         p(class = "text-muted small", "Execute each step in sequence."),
@@ -241,10 +243,11 @@ server <- function(input, output, session) {
     tryCatch({
       if (!file.exists(cache_file)) return(defaults)
       lines <- readLines(cache_file, warn = FALSE)
-      pairs <- strsplit(lines, "=", fixed = TRUE)
-      for (p in pairs) {
-        if (length(p) == 2) defaults[[trimws(p[1])]] <- trimws(p[2])
-      }
+      lines <- lines[grepl("=", lines, fixed = TRUE)]
+      # am ersten "=" trennen: leere Werte und Werte mit "=" bleiben erhalten
+      keys <- trimws(sub("=.*$", "", lines))
+      vals <- trimws(sub("^[^=]*=", "", lines))
+      for (i in seq_along(keys)) defaults[[keys[i]]] <- vals[i]
       defaults
     }, error = function(e) defaults)
   }
@@ -314,6 +317,48 @@ server <- function(input, output, session) {
   output$db_display <- renderText({
     fp <- selected_db()
     if (is.null(fp) || !nzchar(fp)) "No file selected" else fp
+  })
+
+  # --- Data Settings & Meta Data inputs (persistent) ---
+  cached_inputs <- c(
+    recursive   = "switch",
+    rerun       = "switch",
+    lang        = "select",
+    location    = "text",
+    lat         = "numeric",
+    lon         = "numeric",
+    device      = "select",
+    micro       = "text",
+    model       = "select",
+    min_conf    = "numeric",
+    overlap     = "numeric",
+    sensitivity = "numeric"
+  )
+
+  restore_input <- function(id, type, val) {
+    switch(type,
+           switch  = bslib::update_switch(id, value = identical(val, "TRUE"), session = session),
+           select  = updateSelectInput(session,  id, selected = val),
+           text    = updateTextInput(session,    id, value = val),
+           numeric = updateNumericInput(session, id, value = suppressWarnings(as.numeric(val)))
+    )
+  }
+
+  # gespeicherte Werte einmalig nach dem ersten Rendern setzen
+  session$onFlushed(function() {
+    for (id in names(cached_inputs)) {
+      val <- cache[[id]]
+      if (!is.null(val)) restore_input(id, cached_inputs[[id]], val)
+    }
+  }, once = TRUE)
+
+  # Aenderungen speichern (ignoreInit: Startwerte ueberschreiben den Cache nicht)
+  lapply(names(cached_inputs), function(id) {
+    observeEvent(input[[id]], {
+      val <- input[[id]]
+      val <- if (length(val) == 0 || is.na(val)) "" else as.character(val)
+      if (!identical(read_cache()[[id]], val)) write_cache(id, val)
+    }, ignoreInit = TRUE)
   })
 
 
@@ -714,7 +759,14 @@ server <- function(input, output, session) {
   output$activity_plot <- renderPlot({
     req(results_data(), input$taxon)
     tryCatch(
-      MonitoR::birdNET_graph(db = results_data(), taxon = isolate(input$taxon), model = input$model),
+      MonitoR::birdNET_graph(
+        db       = results_data(),
+        taxon    = isolate(input$taxon),
+        model    = input$model,
+        lang     = input$lang,
+        .location = input$location,
+        .lat      = input$lat,
+        .lon      = input$lon),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")
@@ -725,7 +777,13 @@ server <- function(input, output, session) {
   output$heatmap_plot <- renderPlot({
     req(results_data(), input$taxon)
     tryCatch(
-      MonitoR::birdNET_heatmap(db = results_data(), taxon = isolate(input$taxon)),
+      MonitoR::birdNET_heatmap(
+        db = results_data(),
+        taxon = isolate(input$taxon),
+        lang     = input$lang,
+        .location = input$location,
+        .lat      = input$lat,
+        .lon      = input$lon),
       error = function(e) {
         plot.new()
         text(0.5, 0.5, paste("Error:", e$message), col = "red")
