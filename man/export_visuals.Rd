@@ -4,13 +4,19 @@
 \alias{export_visuals}
 \title{Export visuals}
 \usage{
-export_visuals(path, model = c("BirdNET v2.4", "Perch v2", "combined"))
+export_visuals(
+  path,
+  model = c("BirdNET v2.4", "Perch v2", "combined"),
+  lang = c("en", "de")
+)
 }
 \arguments{
 \item{path}{path}
 
 \item{model}{Model used to classify; one of \code{"BirdNET_V2.4"} or
 \code{"Perch v2"}}
+
+\item{lang}{language ('de' or 'en')}
 }
 \description{
 Export visuals

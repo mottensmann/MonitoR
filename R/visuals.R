@@ -55,6 +55,10 @@ birdNET_graph <- function(
     .lon = meta[["Lon"]]
   }
 
+  ## get xlimits
+  xmin.date <- lubridate::as_date(min(df$T1)); xmin.datetime <- min(df$T1)
+  xmax.date <- lubridate::as_date(max(df$T1)); xmax.datetime <- max(df$T1)
+
   # Silence R CMD CHECK notes for NSE column names
   Taxon <- T1 <- hh <- dd <- Verification <- n <- NULL
 
@@ -131,20 +135,20 @@ birdNET_graph <- function(
   ## Plot A: events per day
   plot_day <- df |>
     dplyr::count(dd, Verification) |>
-    tidyr::complete(dd, Verification, fill = list(n = 0)) |>
+    tidyr::complete(dd  = seq(xmin.date, xmax.date, by = "day"), Verification, fill = list(n = 0)) |>
     ggplot(aes(x = dd, y = n, fill = Verification)) +
-    geom_bar(stat = "identity", col = "black", linewidth = 0.3) +
-    scale_x_date(expand = c(0, 0)) +
+    geom_bar(stat = "identity", col = "black", linewidth = 0.3, na.rm = T) +
+    scale_x_date(date_labels = "%d.%m",
+                 expand = c(0,0),
+                 limits = c(xmin.date - 0.5, xmax.date + 0.5)) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
     fill_scale +
-    labs(
-      x = ifelse(lang == 'en', "Date", "Datum"),
-      y = ifelse(lang == 'en', "Events", "Detektionen")
-    ) +
+    labs(x = ifelse(lang == 'en', "Date", "Datum"),
+         y = ifelse(lang == 'en', "Events", "Detektionen")) +
     egg::theme_presentation(base_size = 20) +
     theme(panel.grid      = element_blank(),
           plot.background = element_rect(fill = "white", colour = NA),
-          axis.text.x     = element_text(angle = 45, hjust = 1))
+          axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
   ## 5. Plot B: events per hour
   plot_hour <- df |>
@@ -173,7 +177,7 @@ birdNET_graph <- function(
       caption  = paste0(
         paste0(.location, " | ", round(.lat,2), ", ", round(.lon,2)), "\n",
         nrow(df), " event(s)  (", model, ")\n",
-        min(df$T1), " - ", max(df$T1)),
+        xmin.datetime, " - ", xmax.datetime),
       theme = theme(plot.title    = element_text(size = 18, face = "bold"),
                     plot.subtitle = element_text(size = 14, face = "italic"),
                     plot.caption  = element_text(size = 12)))
@@ -209,6 +213,10 @@ birdNET_heatmap <- function(
     .lat <- meta[["Lat"]]
     .lon <- meta[["Lon"]]
   }
+
+  ## get xlimits
+  xmin.date <- lubridate::as_date(min(df$T1)); xmin.datetime <- min(df$T1)
+  xmax.date <- lubridate::as_date(max(df$T1)); xmax.datetime <- max(df$T1)
 
   df <- df |>
     dplyr::filter(Taxon == taxon) |>
@@ -250,26 +258,22 @@ birdNET_heatmap <- function(
   heat_df <- df |>
     dplyr::count(dd, hh) |>
     tidyr::complete(
-      dd  = seq(min(dd), max(dd), by = "day"),
+      dd  = seq(xmin.date, xmax.date, by = "day"),
       hh  = 0:23,
-      fill = list(n = 0)
-    ) |>
+      fill = list(n = 0)) |>
     dplyr::mutate(n = dplyr::na_if(n, 0))
 
   p <-
     ggplot(heat_df, aes(x = dd, y = hh, fill = n)) +
     geom_tile(color = "black", linewidth = 0.02) +
     geom_text(aes(label = ifelse(n > 0, n, "")), size = 3, na.rm = T, colour = "black") +
-    scale_x_date(
-      date_labels = "%d.%m",
-      date_breaks = "1 day",
-      expand = c(0, 0)
-    ) +
-    scale_y_continuous(
-      breaks = 0:23,
-      expand = c(0, 0),
-      trans  = "reverse"       # Stunde 0 oben, 23 unten
-    ) +
+    scale_x_date(date_labels = "%d.%m",
+                 date_breaks = "1 day",
+                 expand = c(0,0),
+                 limits = c(xmin.date - 0.5, xmax.date + 0.5)) +
+    scale_y_continuous(breaks = 0:23,
+                       expand = c(0, 0),
+                       trans  = "reverse") +
     scale_fill_gradient(
       low  = "#f7fcb9",
       high = "#41ab5d",
@@ -283,10 +287,10 @@ birdNET_heatmap <- function(
          caption  = paste0(
            paste0(.location, " | ", round(.lat,2), ", ", round(.lon,2)), "\n",
            nrow(df), " event(s)  (", model, ")\n",
-           min(df$T1), " - ", max(df$T1))) +
+           xmin.datetime, " - ", xmax.datetime)) +
     egg::theme_presentation(base_size = 14) +
     theme(panel.grid   = element_blank(),
-          axis.text.x  = element_text(angle = 45, hjust = 1),)
+          axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 0.5))
   return(p)
 }
 
@@ -297,13 +301,18 @@ birdNET_heatmap <- function(
 #' @importFrom ggplot2 ggsave
 #' @export
 #'
-export_visuals <- function(path, model = c("BirdNET v2.4", "Perch v2", "combined")) {
+export_visuals <- function(
+    path,
+    model = c("BirdNET v2.4", "Perch v2", "combined"),
+    lang = c("en", "de")) {
 
   plot_dir <- file.path(path, "visuals")
   dir.create(plot_dir, showWarnings = F)
 
   ## check model ----
   model <- match.arg(model)
+  lang <- match.arg(lang)
+
   # Load existing workbook
   if (model == 'BirdNET v2.4') {
     xlsx    <- 'BirdNET.xlsx'
@@ -324,7 +333,13 @@ export_visuals <- function(path, model = c("BirdNET v2.4", "Perch v2", "combined
 
   ## create heatmaps ----
   heatmap_print <- function(x, db, model) {
-    p <- birdNET_heatmap(db = db, taxon =  x, .location = .location, .lat = .lat, .lon = .lon)
+    p <- birdNET_heatmap(
+      db = db,
+      taxon =  x,
+      .location = .location,
+      .lat = .lat,
+      .lon = .lon,
+      lang = lang)
     ggplot2::ggsave(
       plot     = p,
       device   = 'jpg',
@@ -339,7 +354,14 @@ export_visuals <- function(path, model = c("BirdNET v2.4", "Perch v2", "combined
 
   ## create acitvity plots ----
   graphs_print <- function(x, db, model) {
-    p <- birdNET_graph(db = db, taxon =  x, model = model, .location = .location, .lat = .lat, .lon = .lon)
+    p <- birdNET_graph(
+      db = db,
+      taxon =  x,
+      model = model,
+      .location = .location,
+      .lat = .lat,
+      .lon = .lon,
+      lang = lang)
     ggplot2::ggsave(
       plot     = p,
       device   = 'jpg',
