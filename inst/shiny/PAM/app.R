@@ -480,7 +480,7 @@ server <- function(input, output, session) {
     req(selected_dir())
     add_log('Saving visuals ...')
     tryCatch({
-      MonitoR::export_visuals(path = selected_dir(), model = input$model)
+      MonitoR::export_visuals(path = selected_dir(), model = input$model, lang = input$lang)
       add_log('done')
     }, error = function(e) add_log(e$message, "ERROR"))
   })
