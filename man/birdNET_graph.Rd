@@ -4,13 +4,31 @@
 \alias{birdNET_graph}
 \title{Daily and hourly activity visuals}
 \usage{
-birdNET_graph(db, taxon, model = c("BirdNET v2.4", "Perch v2", "combined"))
+birdNET_graph(
+  db,
+  taxon,
+  model = c("BirdNET v2.4", "Perch v2", "combined"),
+  lang = c("en", "de"),
+  .location,
+  .lat,
+  .lon
+)
 }
 \arguments{
+\item{db}{data frame or path to xlsx file}
+
 \item{taxon}{Taxon name (matched against the \code{Taxon} column)}
 
 \item{model}{Model used to classify; one of \code{"BirdNET_V2.4"} or
 \code{"Perch v2"}}
+
+\item{lang}{language ('de' or 'en')}
+
+\item{.location}{location (optional)}
+
+\item{.lat}{latitude (optiona)}
+
+\item{.lon}{longitude (optiona)}
 }
 \value{
 A \code{patchwork} object with two side-by-side ggplot panels

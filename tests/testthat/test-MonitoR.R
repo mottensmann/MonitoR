@@ -47,3 +47,11 @@ unlink(system.file("extdata", "BirdNET.xlsx", package = "MonitoR"))
 unlink(system.file("extdata", "20211220_064253.Perch.results.txt", package = "MonitoR"))
 unlink(system.file("extdata", "20211220_064253.Perch.labels.txt", package = "MonitoR"))
 unlink(system.file("extdata", "Perch.xlsx", package = "MonitoR"))
+
+## wav2video
+x <- wav2video(system.file("extdata", "20211220_064253.wav", package = "MonitoR"),
+          ffmpeg = 'C:/Program Files (x86)/FFmpeg for Audacity/ffmpeg.exe')
+test_that("wav2video", {
+  expect_equal(tools::file_ext(x), 'mp4')
+})
+unlink(system.file("extdata", "20211220_064253.mp4", package = "MonitoR" ))

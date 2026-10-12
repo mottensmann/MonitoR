@@ -51,6 +51,15 @@ knitr::include_graphics(path = "README_files/app3.png", dpi = 300)
 knitr::include_graphics(path = "README_files/app4.png", dpi = 300)
 ```
 
+## `Render Spectrogram video`
+
+Render spectrogram as mp4 video clip
+
+```{r}
+## NOT RUN
+wav2video(wav = system.file("extdata", "20211220_064253.wav", package = "MonitoR"))
+```
+
 
 ## `RMarkdown Templates`
 

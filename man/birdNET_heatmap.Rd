@@ -4,7 +4,15 @@
 \alias{birdNET_heatmap}
 \title{Heatmap of BirdNET detections}
 \usage{
-birdNET_heatmap(db, taxon, model = c("BirdNET v2.4", "Perch v2", "combined"))
+birdNET_heatmap(
+  db,
+  taxon,
+  model = c("BirdNET v2.4", "Perch v2", "combined"),
+  lang = c("en", "de"),
+  .location,
+  .lat,
+  .lon
+)
 }
 \arguments{
 \item{db}{data frame or path to xlsx file}
@@ -13,6 +21,14 @@ birdNET_heatmap(db, taxon, model = c("BirdNET v2.4", "Perch v2", "combined"))
 
 \item{model}{Model used to classify; one of \code{"BirdNET_V2.4"} or
 \code{"Perch v2"}}
+
+\item{lang}{language ('de' or 'en')}
+
+\item{.location}{location (optional)}
+
+\item{.lat}{latitude (optiona)}
+
+\item{.lon}{longitude (optiona)}
 }
 \description{
 Heatmap of BirdNET detections
