@@ -1,3 +1,5 @@
+## PAM Shiny-App
+
 ### required libraries ---------------------------------------
 pkgs <- c(
   "bsicons",
@@ -13,6 +15,7 @@ pkgs <- c(
   "writexl")
 
 MonitoR::.check_pkgs(pkgs = pkgs)
+message("This is the PAM Shiny-App")
 
 ## UI --------------------------------------------------------
 ui <- page_navbar(
@@ -468,7 +471,7 @@ server <- function(input, output, session) {
     tryCatch({
       lapply(
         selected_dir(), NocMigR2::BirdNET_extract,
-        hyperlink = FALSE,
+        hyperlink = TRUE,
         model     = input$model
       )
       add_log("Extraction completed")

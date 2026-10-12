@@ -489,12 +489,8 @@ server <- function(input, output, session) {
     df <- read_xlsx(fp)
     # Ensure editable columns exist
     if (!"Verification" %in% names(df)) df$Verification <- NA_character_
-    if (!"Comment"      %in% names(df)) df$Comment      <- NA_character_
-    if (!"Correction"   %in% names(df)) df$Correction   <- NA_character_
     # Ensure editable columns are always character (not logical when all-NA)
     df$Verification <- as.character(df$Verification)
-    df$Comment      <- as.character(df$Comment)
-    df$Correction   <- as.character(df$Correction)
     results_data(df)
   })
 
@@ -524,8 +520,7 @@ server <- function(input, output, session) {
     current <- isolate(input$taxon)
     selected <- if (!is.null(current) && current %in% taxa) current else taxa[1]
 
-    selectInput("taxon", "Focal taxon", choices = taxa,
-                selected = selected, width = "100%")
+    selectInput("taxon", "Focal taxon", choices = taxa, selected = selected, width = "100%")
   })
 
   output$summary_boxes <- renderUI({
@@ -567,7 +562,7 @@ server <- function(input, output, session) {
 
   # Determine column indices that should NOT be editable (0-based for DT)
   # Editable: Verification, Comment, Correction — all others disabled
-  editable_cols    <- c("Verification", "Comment", "Correction")
+  editable_cols    <- c("ID", "Verification", "Comment", "Correction")
   display_col_order <- reactiveVal(NULL)   # tracks column order of the rendered table
 
   # Create a reactive for filtered data that updates when taxon OR sync_filter changes.
@@ -590,18 +585,18 @@ server <- function(input, output, session) {
     df <- filtered_data()
 
     # Find file column for clickable links
-    file_col <- NULL
-    potential_cols <- c("Path", "path", "File", "file", "Filepath", "filepath", "FilePath")
-    for (col in potential_cols) {
-      if (col %in% names(df)) { file_col <- col; break }
-    }
-    if (is.null(file_col)) {
-      for (col in names(df)) {
-        if (is.character(df[[col]]) && any(grepl("[/\\\\]", df[[col]], na.rm = TRUE))) {
-          file_col <- col; break
-        }
-      }
-    }
+    file_col <- "File"
+    # potential_cols <- c("Path", "path", "File", "file", "Filepath", "filepath", "FilePath")
+    # for (col in potential_cols) {
+    #   if (col %in% names(df)) { file_col <- col; break }
+    # }
+    # if (is.null(file_col)) {
+    #   for (col in names(df)) {
+    #     if (is.character(df[[col]]) && any(grepl("[/\\\\]", df[[col]], na.rm = TRUE))) {
+    #       file_col <- col; break
+    #     }
+    #   }
+    # }
 
     if (!is.null(file_col) && nrow(df) > 0) {
       df <- df |>
