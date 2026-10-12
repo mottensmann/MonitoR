@@ -22,10 +22,10 @@ ui <- page_navbar(
   title = tags$span(bsicons::bs_icon("binoculars-fill"), "BirdNET Analysis App"),
   theme = bs_theme(version = 5, bootswatch = "flatly"),
   fillable = FALSE,
-  shinyjs::useShinyjs(),
-  ## JavaScript for file link handling and Verification dropdown
-  tags$head(
-    tags$script(HTML("
+  header = tagList(
+    shinyjs::useShinyjs(),
+    tags$head(
+      tags$script(HTML("
       Shiny.addCustomMessageHandler('add_file_click_handlers', function(message) {
         $(document).on('click', '.file-link', function(e) {
           e.preventDefault();
@@ -34,8 +34,8 @@ ui <- page_navbar(
         });
       });
     "))
-  ),
-
+    )
+    ),
   ### Tab 1: Configuration -----------------------------------
   nav_panel(
     title = "Settings",
@@ -87,7 +87,7 @@ ui <- page_navbar(
     card(
       card_header("Archive Settings"),
       layout_columns(
-        col_widths = c(5, 5, 1, 1),
+        col_widths = c(6,6),
         div(
           tags$label("Archive path", class = "form-label"),
           shinyDirButton("path2archive", "Select archive directory", "Please select a folder", class = "w-100"),
@@ -241,7 +241,7 @@ server <- function(input, output, session) {
   ### Step 0: Pick folder ------------------------------------
 
   # Volumes einmalig laden; fester Vektor fuer shinyFiles 0.9.3
-  roots <- c(Home = path.expand("~"), shinyFiles::getVolumes()())
+  roots <- c(Home = path.expand("~"), suppressWarnings(shinyFiles::getVolumes()()))
 
   # --- Persistent cache (~/.monitor.NocMig.txt) ---
   cache_file <- path.expand("~/.monitor.NocMig.txt")
