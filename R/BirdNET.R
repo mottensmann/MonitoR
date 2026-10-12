@@ -231,6 +231,7 @@ write_birdnet_slist <- function(
 #' @param path path to results
 #' @param slist path to custom species list
 #' @param model one of 'BirdNET v2.4' or 'Perch v2'
+#' @param .filter_labels boolean
 #' @importFrom dplyr filter
 #' @importFrom NocMigR2 reformat_xlsx
 #' @export
@@ -238,7 +239,9 @@ write_birdnet_slist <- function(
 birdNET_select <- function(
     path = NULL,
     model = c('BirdNET v2.4', 'Perch v2'),
-    slist = system.file("extdata/ornitho_de.txt", package = "MonitoR")) {
+    slist = system.file("extdata/ornitho_de.txt", package = "MonitoR"),
+    .filter_labels = TRUE) {
+
   Taxon <- NULL
   model <- match.arg(model)
 
@@ -258,6 +261,8 @@ birdNET_select <- function(
 
   ## read and filter Records
   Records <- readxl::read_xlsx(file.path(path, xlsx))
+
+  if (isTRUE(.filter_labels)) filter_audacity_labels(path, model, slist)
 
   before <- nrow(Records)
   Records <- dplyr::filter(Records, Taxon %in% slist[["name_de"]])
@@ -374,3 +379,5 @@ run_birdnet <- function(
   gc(verbose = FALSE)
   return(x)
 }
+
+

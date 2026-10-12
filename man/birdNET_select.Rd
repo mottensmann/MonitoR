@@ -7,7 +7,8 @@
 birdNET_select(
   path = NULL,
   model = c("BirdNET v2.4", "Perch v2"),
-  slist = system.file("extdata/ornitho_de.txt", package = "MonitoR")
+  slist = system.file("extdata/ornitho_de.txt", package = "MonitoR"),
+  .filter_labels = TRUE
 )
 }
 \arguments{
@@ -16,6 +17,8 @@ birdNET_select(
 \item{model}{one of 'BirdNET v2.4' or 'Perch v2'}
 
 \item{slist}{path to custom species list}
+
+\item{.filter_labels}{boolean}
 }
 \description{
 Filter BirdNET selection tables by species
