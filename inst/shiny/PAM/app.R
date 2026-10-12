@@ -597,9 +597,6 @@ server <- function(input, output, session) {
     }
   })
 
-  # Determine column indices that should NOT be editable (0-based for DT)
-  # Editable: Verification, Comment, Correction — all others disabled
-  editable_cols    <- c("Verification", "Comment", "Correction")
   display_col_order <- reactiveVal(NULL)   # tracks column order of the rendered table
 
   # Create a reactive for filtered data that updates when taxon OR sync_filter changes.
@@ -662,20 +659,15 @@ server <- function(input, output, session) {
     # Cache display column order for use in the cell-edit observer
     display_col_order(names(df))
 
-    # Determine which column indices (0-based) are NOT editable
-    col_names   <- names(df)
-    disable_idx <- which(!col_names %in% c(editable_cols, ".rid")) - 1L
-    rid_idx     <- which(col_names == ".rid") - 1L  # 0-based, for JS and columnDefs
+    col_names <- names(df)
+    rid_idx   <- which(col_names == ".rid") - 1L  # 0-based, for JS and columnDefs
 
     DT::datatable(
       df,
       filter   = "top",
       escape   = FALSE,
       rownames = FALSE,
-      editable = list(
-        target  = "cell",
-        disable = list(columns = disable_idx)
-      ),
+      editable = FALSE,  # editing is handled by custom JS (see callback)
       options = list(
         pageLength = 15,
         scrollX    = TRUE,
@@ -689,6 +681,56 @@ server <- function(input, output, session) {
         table.columns().every(function() {
           var header = $(this.header()).text().trim();
           if (header === 'Verification') { verifCol = this.index(); }
+        });
+
+        // Text columns -> own Shiny input each (same pattern as Verification)
+        var inputMap = {
+          'Correction': 'correction_cell_edit',
+          'Comment':    'comment_cell_edit'
+        };
+        var textCols = {};
+        table.columns().every(function() {
+          var h = $(this.header()).text().trim();
+          if (inputMap.hasOwnProperty(h)) { textCols[this.index()] = inputMap[h]; }
+        });
+
+        table.on('click', 'td', function(e) {
+          var cell = table.cell(this);
+          var idx  = cell.index();
+          if (!idx) return;
+          var inputName = textCols[idx.column];
+          if (!inputName) return;
+
+          var td = $(this);
+          if (td.find('input.txt-edit').length) return;
+
+          var curVal = cell.data() == null ? '' : String(cell.data());
+          var done   = false;
+          td.html('<input type=\"text\" class=\"txt-edit\" style=\"width:100%;padding:2px\">');
+          var inp = td.find('input.txt-edit');
+          inp.val(curVal).focus();
+
+          function commit(save) {
+            if (done) return;
+            done = true;
+            var newVal = inp.val();
+            if (save && newVal !== curVal) {
+              var rid = table.cell(idx.row, ridCol).data();
+              cell.data(newVal);
+              Shiny.setInputValue(
+                inputName,
+                {row: rid, value: newVal, _nonce: Math.random()},
+                {priority: 'event'}
+              );
+            } else {
+              td.html(curVal);
+            }
+          }
+          inp.on('keydown', function(ev) {
+            if (ev.key === 'Enter')       { commit(true);  }
+            else if (ev.key === 'Escape') { commit(false); }
+          });
+          inp.on('blur', function() { commit(true); });
         });
 
         table.on('click', 'td', function(e) {
@@ -745,18 +787,21 @@ server <- function(input, output, session) {
     results_data(df)
   })
 
-  # Observer for Comment / Correction (native DT inline editor)
-  # info$row from DT is 1-based within filtered_data(); use .rid to map to results_data()
-  observeEvent(input$results_table_cell_edit, {
-    info     <- input$results_table_cell_edit
-    df       <- results_data()
-    col_name <- display_col_order()[info$col]
+  # Observers for Correction / Comment (custom JS events, like Verification)
+  # info$row is .rid — the direct row index in results_data()
+  text_edit_inputs <- c(
+    Correction = "correction_cell_edit",
+    Comment    = "comment_cell_edit"
+  )
 
-    if (is.null(col_name) || !col_name %in% c("Comment", "Correction")) return()
-
-    master_row <- filtered_data()$.rid[info$row]
-    df[master_row, col_name] <- as.character(info$value)
-    results_data(df)
+  lapply(names(text_edit_inputs), function(col) {
+    observeEvent(input[[text_edit_inputs[[col]]]], {
+      info <- input[[text_edit_inputs[[col]]]]
+      df   <- results_data()
+      req(col %in% names(df))
+      df[[col]][info$row] <- as.character(info$value)
+      results_data(df)
+    })
   })
 
   output$activity_plot <- renderPlot({
