@@ -468,7 +468,7 @@ server <- function(input, output, session) {
     tryCatch({
       lapply(
         selected_dir(), NocMigR2::BirdNET_extract,
-        hyperlink = FALSE,
+        hyperlink = TRUE,
         model     = input$model
       )
       add_log("Extraction completed")
