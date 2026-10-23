@@ -8,7 +8,7 @@ rename_photo2datetime(
   input_dir,
   output_dir = NULL,
   recursive = T,
-  pattern = c("JPG", "JPEG", "PNG"),
+  pattern = c("JPG", "JPEG", "PNG", "MP4"),
   prefix = NULL,
   dtime = c("ctime", "mtime"),
   tz = ""

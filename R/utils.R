@@ -14,13 +14,14 @@
 rename_photo2datetime <- function(input_dir,
                                   output_dir = NULL,
                                   recursive = T,
-                                  pattern = c("JPG", "JPEG", "PNG"),
+                                  pattern = c("JPG", "JPEG", "PNG", 'MP4'),
                                   prefix = NULL,
                                   dtime = c("ctime", "mtime"),
                                   tz = '') {
   pattern <- match.arg(pattern)
   dtime <- match.arg(dtime)
 
+  message('Check for ', pattern, ' files in ', input_dir, ' ...\n')
   ## list files
   if (!is.null(pattern)) {
     files <- list.files(input_dir, full.names = T, recursive = recursive, pattern = pattern)
@@ -28,37 +29,48 @@ rename_photo2datetime <- function(input_dir,
     files <- list.files(input_dir, full.names = T, recursive = recursive)
   }
 
-  ## Retrieve date & time
-  cat('retrieve timestamps ... \n')
-  if (pattern %in% c("JPG", "JPEG", "PNG")) {
-    timestamp <- exifr::read_exif(files, tags = 'DateTimeOriginal')[['DateTimeOriginal']]
-    timestamp <-  as.POSIXct(timestamp, format = "%Y:%m:%d %H:%M:%S", tz = tz)
+  if (length(files) >= 1) {
+    ## Retrieve date & time
+    message('retrieve timestamps ... \n')
+    if (pattern %in% c("JPG", "JPEG", "PNG")) {
+      timestamp <- exifr::read_exif(files, tags = 'DateTimeOriginal')[['DateTimeOriginal']] |>
+        as.POSIXct(format = "%Y:%m:%d %H:%M:%S", tz = tz)
+    } else if (pattern == 'MP4') {
+      timestamp <- exifr::read_exif(files, tags = 'CreateDate')[['CreateDate']] |>
+        as.POSIXct(format = "%Y:%m:%d %H:%M:%S", tz = tz) +
+        ## convert to local time
+        2*60*60
+    } else {
+      timestamp <- as.vector(sapply(files, function(x) file.info(x)[[dtime]]))
+      timestamp <- as.POSIXct(timestamp, origin = "1970-01-01", tz = tz)
+    }
+    timestamp <- format(timestamp, "%Y%m%d_%H%M%S")
+
+    ## Create file name from timestamp
+    if (any(duplicated(timestamp))) timestamp <- paste0(timestamp, '_', 1:length(timestamp))
+    if (!is.null(prefix)) timestamp <- paste0(prefix, '_', timestamp)
+    timestamp <- paste0(timestamp, '.', tools::file_ext(files))
+
+    ## rename file
+    message('rename files ... \n')
+    if (is.null(output_dir)) {
+      out <- pbapply::pblapply(1:length(files), function(x) {
+        file.rename(from = file.path(dirname(files[x]), basename(files[x])),
+                    to = file.path(dirname(files[x]), timestamp[x]))
+      })
+      ## copy
+    } else if (!is.null(output_dir)) {
+      if (!dir.exists(output_dir)) dir.create(output_dir, showWarnings = FALSE)
+      out <- pbapply::pblapply(1:length(files), function(x) {
+        file.copy(from = file.path(dirname(files[x]), basename(files[x])),
+                  to = file.path(output_dir, timestamp[x]))
+      })
+    }
   } else {
-    timestamp <- as.vector(sapply(files, function(x) file.info(x)[[dtime]]))
-    timestamp <- as.POSIXct(timestamp, origin = "1970-01-01", tz = tz)
+    message('No ', pattern, ' files found')
   }
-  timestamp <- format(timestamp, "%Y%m%d_%H%M%S")
 
-  ## Create file name from timestamp
-  if (any(duplicated(timestamp))) timestamp <- paste0(timestamp, '_', 1:length(timestamp))
-  if (!is.null(prefix)) timestamp <- paste0(prefix, '_', timestamp)
-  timestamp <- paste0(timestamp, '.', tools::file_ext(files))
 
-  ## rename file
-  cat('rename files ... \n')
-  if (is.null(output_dir)) {
-    out <- pbapply::pblapply(1:length(files), function(x) {
-      file.rename(from = file.path(dirname(files[x]), basename(files[x])),
-                  to = file.path(dirname(files[x]), timestamp[x]))
-    })
-    ## copy
-  } else if (!is.null(output_dir)) {
-    if (!dir.exists(output_dir)) dir.create(output_dir, showWarnings = FALSE)
-    out <- pbapply::pblapply(1:length(files), function(x) {
-      file.copy(from = file.path(dirname(files[x]), basename(files[x])),
-                to = file.path(output_dir, timestamp[x]))
-    })
-  }
 }
 
 #' Strip device used as prefix id from file names otherwise representing just a time-stamp.
